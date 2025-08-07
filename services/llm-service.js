@@ -1,0 +1,152 @@
+// Nation Assistant LLM Service - Crestal Network Integration
+'use strict';
+
+class LLMService {
+  constructor() {
+    this.apiKey = null;
+    this.model = 'gpt-4.1-nano';
+    this.maxTokens = 300;
+    this.temperature = 0.7;
+    this.baseUrl = 'https://open.service.crestal.network/v1';
+    this.initialized = false;
+  }
+
+  async init() {
+    if (this.initialized) return;
+    try {
+      await this.loadSettings();
+      this.initialized = true;
+    } catch (error) {
+      console.warn('LLM service initialization failed:', error.message);
+    }
+  }
+
+  async loadSettings() {
+    const result = await chrome.storage.sync.get(['crestalApiKey']);
+    if (!result.crestalApiKey?.trim()) {
+      throw new Error('No Crestal API key configured');
+    }
+    this.apiKey = result.crestalApiKey.trim();
+    this.model = 'gpt-4.1-nano';
+    this.maxTokens = 300;
+    this.temperature = 0.7;
+    this.baseUrl = 'https://open.service.crestal.network/v1';
+  }
+
+  async makeRequest(messages, options = {}) {
+    if (!this.apiKey) throw new Error('API key not configured');
+
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages,
+          max_tokens: options.maxTokens || this.maxTokens,
+          temperature: options.temperature || this.temperature,
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`API Error: ${response.status} - ${errorData.error?.message || 'Request failed'}`);
+      }
+
+      const data = await response.json();
+      if (!data.choices?.[0]?.message?.content) {
+        throw new Error('Invalid API response format');
+      }
+
+      return data.choices[0].message.content;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Process and format AI response to natural language
+   */
+  formatResponse(rawResponse) {
+    try {
+      const jsonResponse = JSON.parse(rawResponse);
+      
+      if (jsonResponse.page_overview) {
+        let formatted = jsonResponse.page_overview;
+        
+        if (jsonResponse.key_features && jsonResponse.key_features.length > 0) {
+          formatted += `\n\nKey features include: ${jsonResponse.key_features.join(', ')}.`;
+        }
+        
+        if (jsonResponse.target_audience) {
+          formatted += `\n\nThis appears to be aimed at ${jsonResponse.target_audience.toLowerCase()}.`;
+        }
+        
+        if (jsonResponse.call_to_action) {
+          formatted += `\n\n${jsonResponse.call_to_action}`;
+        }
+        
+        return formatted;
+      }
+      
+      if (typeof jsonResponse === 'object') {
+        return Object.values(jsonResponse).join(' ');
+      }
+      
+      return rawResponse;
+    } catch (error) {
+      return rawResponse;
+    }
+  }
+
+  /**
+   * Chat with webpage content using a single optimized prompt
+   */
+  async chatWithPage(pageContent, userQuery = "", chatHistory = []) {
+    const finalQuery = userQuery.trim() === ""
+      ? "What is this page about? Give me a brief overview."
+      : userQuery;
+
+    const messages = [
+      {
+        role: 'system',
+        content: `You are a helpful web content assistant. Answer questions about web pages naturally and conversationally. Keep responses concise unless the user asks for detailed information.`
+      },
+      ...chatHistory.slice(-3),
+      {
+        role: 'user',
+        content: `${finalQuery}
+
+Here's the webpage content:
+${pageContent}`
+      }
+    ];
+
+    const rawResponse = await this.makeRequest(messages);
+    return this.formatResponse(rawResponse);
+  }
+
+  /**
+   * Translate text to target language
+   */
+  async translateText(text, targetLanguage) {
+    const messages = [
+      {
+        role: 'user',
+        content: `You are a professional translator. Translate the following text accurately to ${targetLanguage}. Only provide the translation, no explanations or additional text. Maintain the original tone and meaning.
+
+Text to translate:
+${text}`
+      }
+    ];
+
+    const translation = await this.makeRequest(messages, { maxTokens: 500 });
+    return translation.trim();
+  }
+}
+
+// Export for background script
+export { LLMService };

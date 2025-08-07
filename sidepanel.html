@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nation Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/nation-theme.css">
+    <link rel="stylesheet" href="styles/sidepanel.css">
+</head>
+<body>
+    <div class="modern-chat-app">
+        <!-- Nation Header with Logo -->
+        <header class="nation-header">
+            <div class="header-glow"></div>
+            <div class="header-content">
+                <div class="brand-section">
+                    <div class="logo-container">
+                        <img src="title.png" alt="Nation Assistant" class="nation-logo">
+                    </div>
+
+                </div>
+                <div class="header-actions">
+                    <button class="terminal-btn" id="refresh-btn" title="New conversation">
+                        <i class="fas fa-refresh"></i>
+                    </button>
+                    <button class="terminal-btn" id="settings-btn" title="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Terminal Context Bar -->
+            <div class="terminal-context-bar" id="context-bar">
+                <div class="context-details">
+                    <div class="page-title" id="tab-title">Loading page...</div>
+                    <div class="page-url" id="tab-url"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Modern Chat Container -->
+        <main class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <!-- Welcome message will be inserted here -->
+            </div>
+        </main>
+
+        <!-- Modern Input Area -->
+        <footer class="chat-input-area">
+            <div class="input-wrapper">
+                <div class="input-container" id="input-container">
+                    <textarea 
+                        id="chat-input" 
+                        class="message-input"
+                        placeholder="Message Nation Assistant..."
+                        rows="1"
+                        maxlength="4000"
+                    ></textarea>
+                    <div class="input-actions">
+                        <button id="send-btn" class="send-button" disabled>
+                            <i class="fas fa-arrow-up"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-footer">
+                    <span class="input-hint">Press Enter to send, Shift+Enter for new line</span>
+                </div>
+            </div>
+        </footer>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay hidden" id="loading-overlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <span class="loading-text">Thinking...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
