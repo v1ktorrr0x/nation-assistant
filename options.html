@@ -1820,6 +1820,14 @@
             border: 1px solid;
             position: relative;
             overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(10px);
+            opacity: 0;
+        }
+
+        .status-message.status-animate {
+            transform: translateY(0);
+            opacity: 1;
         }
 
         .status-message::before {
@@ -1842,6 +1850,36 @@
             background: rgba(255, 82, 82, 0.1);
             border-color: rgba(255, 82, 82, 0.3);
             color: #ff9999;
+        }
+
+        /* Subtle Button States */
+        .action-btn.btn-loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .action-btn.btn-loading .btn-icon i {
+            animation: subtleSpin 2s linear infinite;
+        }
+
+        .action-btn.btn-processing {
+            opacity: 0.8;
+        }
+
+        .action-btn.btn-processing .btn-glow {
+            opacity: 0.6;
+            animation: subtlePulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes subtleSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes subtlePulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
         }
 
         /* Form Help */
@@ -1908,6 +1946,174 @@
                 padding: 0.8rem 1rem;
                 font-size: 0.9rem;
             }
+        }
+
+        /* Enhanced Button State Animations */
+        .action-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn.btn-transitioning {
+            transform: scale(0.98);
+        }
+
+        .action-btn.btn-loading {
+            background: rgba(208, 255, 22, 0.1);
+            border-color: rgba(208, 255, 22, 0.4);
+            transform: scale(0.95);
+        }
+
+        .action-btn.btn-success {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.5);
+            color: #22c55e;
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .action-btn.btn-error {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #ef4444;
+            transform: scale(0.98);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-content {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-text {
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        /* Icon Animations */
+        .btn-icon-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        .btn-icon-pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .btn-icon-bounce {
+            animation: bounce 0.6s ease-out;
+        }
+
+        .btn-icon-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% { 
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes bounce {
+            0% { 
+                transform: scale(0.3) rotate(-10deg);
+                opacity: 0;
+            }
+            50% { 
+                transform: scale(1.1) rotate(5deg);
+                opacity: 1;
+            }
+            100% { 
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+            20%, 40%, 60%, 80% { transform: translateX(2px); }
+        }
+
+        /* Enhanced Button Glow Effects */
+        .action-btn.btn-success .btn-glow {
+            background: radial-gradient(circle, rgba(34, 197, 94, 0.4) 0%, transparent 70%);
+            animation: successGlow 2s ease-out;
+        }
+
+        .action-btn.btn-error .btn-glow {
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.4) 0%, transparent 70%);
+            animation: errorGlow 1s ease-out;
+        }
+
+        .action-btn.btn-loading .btn-glow {
+            background: radial-gradient(circle, rgba(208, 255, 22, 0.3) 0%, transparent 70%);
+            animation: loadingGlow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes successGlow {
+            0% { 
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            50% { 
+                opacity: 1;
+                transform: scale(1.2);
+            }
+            100% { 
+                opacity: 0.6;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes errorGlow {
+            0% { 
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            100% { 
+                opacity: 0.8;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes loadingGlow {
+            0%, 100% { 
+                opacity: 0.3;
+                transform: scale(0.9);
+            }
+            50% { 
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+
+        /* Button Text Transitions */
+        .action-btn .btn-title {
+            transition: all 0.3s ease;
+        }
+
+        .action-btn .btn-desc {
+            transition: all 0.3s ease;
+            opacity: 0.7;
+        }
+
+        .action-btn.btn-success .btn-desc,
+        .action-btn.btn-error .btn-desc,
+        .action-btn.btn-loading .btn-desc {
+            opacity: 0.9;
         }
     </style>
 </head>
@@ -1990,6 +2196,28 @@
                             </div>
                             <div class="field-info">
                                 <span>Your Nation Agent API key enables AI-powered web analysis</span>
+                            </div>
+                        </div>
+
+                        <div class="input-field">
+                            <div class="field-header">
+                                <label for="base-url" class="field-label">
+                                    <i class="fas fa-server"></i>
+                                    <span>API Base URL</span>
+                                </label>
+                                <div class="field-status">
+                                    <i class="fas fa-globe"></i>
+                                    <span>Custom</span>
+                                </div>
+                            </div>
+                            <div class="input-container">
+                                <input type="url" id="base-url" class="neural-input"
+                                    placeholder="https://open.service.crestal.network/v1">
+                                <div class="input-border"></div>
+                                <div class="input-focus-line"></div>
+                            </div>
+                            <div class="field-info">
+                                <span>Custom API endpoint (leave empty for default Crestal Network)</span>
                             </div>
                         </div>
 

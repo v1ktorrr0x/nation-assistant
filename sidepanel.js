@@ -1,544 +1,797 @@
 // Nation Assistant Simple Chat Sidepanel
 'use strict';
 
+// ===== AI RESPONSE FORMATTING =====
+
+/**
+ * Main formatter for AI responses with Nation theme
+ */
+function formatAIResponse(content) {
+  if (!content || typeof content !== 'string') {
+  return '<p class="error-text">Invalid response</p>';
+  }
+
+  // Normalize line endings
+  const normalized = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+  // Apply formatting pipeline
+  return [
+  formatCodeBlocks,
+  formatHeaders,
+  formatTextStyles,
+  formatLists,
+  formatLinks,
+  formatParagraphs
+  ].reduce((text, formatter) => formatter(text), normalized);
+}
+
+function formatCodeBlocks(content) {
+  return content
+  // Code blocks with language
+  .replace(/```(\w+)?\n?([\s\S]*?)```/g, (match, language, code) => {
+    const lang = language || 'text';
+    const cleanCode = escapeHtml(code.trim());
+    return `<div class="code-block" data-language="${lang}"><pre><code>${cleanCode}</code></pre></div>`;
+  })
+  // Inline code
+  .replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
+}
+
+function formatHeaders(content) {
+  return content.replace(/^(#{1,6})\s+(.+)$/gm, (match, hashes, text) => {
+  const level = hashes.length;
+  const cleanText = escapeHtml(text.trim());
+  return `<h${level} class="ai-header ai-header-${level}">${cleanText}</h${level}>`;
+  });
+}
+
+function formatTextStyles(content) {
+  return content
+  .replace(/\*\*(.*?)\*\*/g, '<strong class="ai-bold">$1</strong>')
+  .replace(/\*(.*?)\*/g, '<em class="ai-italic">$1</em>')
+  .replace(/~~(.*?)~~/g, '<del class="ai-strikethrough">$1</del>');
+}
+
+function formatLists(content) {
+  return wrapListItems(
+  content
+    // Unordered lists
+    .replace(/^(\s*)[-*+]\s+(.+)$/gm, (match, indent, text) => {
+      const level = Math.floor(indent.length / 2);
+      return `<li class="ai-list-item ai-list-unordered" data-level="${level}">${text.trim()}</li>`;
+    })
+    // Ordered lists
+    .replace(/^(\s*)\d+\.\s+(.+)$/gm, (match, indent, text) => {
+      const level = Math.floor(indent.length / 2);
+      return `<li class="ai-list-item ai-list-ordered" data-level="${level}">${text.trim()}</li>`;
+    })
+  );
+}
+
+function formatLinks(content) {
+  return content
+  // Markdown links
+  .replace(/\[([^\]]+)\]\(([^)]+)\)/g, 
+    '<a href="$2" class="ai-link" target="_blank" rel="noopener noreferrer">$1</a>')
+  // Auto-links
+  .replace(/(https?:\/\/[^\s<>"]+)/g, 
+    '<a href="$1" class="ai-link ai-auto-link" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+function wrapListItems(content) {
+  return content
+  // Wrap unordered lists
+  .replace(/(<li class="ai-list-item ai-list-unordered"[^>]*>.*?<\/li>(?:\s*<li class="ai-list-item ai-list-unordered"[^>]*>.*?<\/li>)*)/gs,
+    '<ul class="ai-list ai-list-unordered">$1</ul>')
+  // Wrap ordered lists
+  .replace(/(<li class="ai-list-item ai-list-ordered"[^>]*>.*?<\/li>(?:\s*<li class="ai-list-item ai-list-ordered"[^>]*>.*?<\/li>)*)/gs,
+    '<ol class="ai-list ai-list-ordered">$1</ol>');
+}
+
+function formatParagraphs(content) {
+  return content
+  .split(/\n\s*\n/)
+  .map(part => {
+    const trimmed = part.trim();
+    if (!trimmed) return '';
+    
+    // Don't wrap block elements
+    if (trimmed.match(/^<(h[1-6]|div|pre|ul|ol|blockquote|hr)/i)) {
+      return trimmed;
+    }
+    
+    // Convert line breaks and wrap in paragraph
+    const withBreaks = trimmed.replace(/\n/g, '<br>');
+    return `<p class="ai-text">${withBreaks}</p>`;
+  })
+  .filter(Boolean)
+  .join('\n\n');
+}
+
+// ===== UTILITY FUNCTIONS =====
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatPlainText(content) {
+  const escaped = escapeHtml(content);
+  const withBreaks = escaped.replace(/\n\n/g, '</p><p class="ai-text">').replace(/\n/g, '<br>');
+  return `<p class="ai-text">${withBreaks}</p>`;
+}
+
+function formatTime() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+
+
+// ===== MAIN APPLICATION =====
+
+// Global state and elements
+let elements = {};
+let state = {
+  chatHistory: [],
+  isProcessing: false,
+  currentTabId: null
+};
+
+// ===== APPLICATION FUNCTIONS =====
+
+async function init() {
+  try {
+  setupEventListeners();
+  await loadCurrentTab();
+  await handleContextAction();
+
+  // Show welcome message if no context action
+  if (!await hasContextAction()) {
+    showWelcomeMessage();
+  }
+
+  enableChatInput();
+  
+  // Focus input and disable send button initially
+  setTimeout(() => elements.chatInput?.focus(), 200);
+  if (elements.sendBtn) elements.sendBtn.disabled = true;
+  
+  } catch (error) {
+  console.error('Initialization error:', error);
+  // Show error in chat if possible
+  const chatMessages = elements.chatMessages;
+  if (chatMessages) {
+    const errorEl = document.createElement('div');
+    errorEl.classList.add('message', 'system');
+    errorEl.innerHTML = '<div class="message-content">❌ Failed to initialize. Please refresh the page.</div>';
+    chatMessages.appendChild(errorEl);
+  }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-  // DOM Elements - Updated for modern interface
-  const chatMessages = document.getElementById('chat-messages');
-  const chatInput = document.getElementById('chat-input');
-  const sendBtn = document.getElementById('send-btn');
-  const tabTitle = document.getElementById('tab-title');
-  const tabUrl = document.getElementById('tab-url');
-  const refreshBtn = document.getElementById('refresh-btn');
-  const settingsBtn = document.getElementById('settings-btn');
+  // Initialize DOM Elements
+  elements = {
+  chatMessages: document.getElementById('chat-messages'),
+  chatInput: document.getElementById('chat-input'),
+  sendBtn: document.getElementById('send-btn'),
+  tabTitle: document.getElementById('tab-title'),
+  tabUrl: document.getElementById('tab-url'),
+  refreshBtn: document.getElementById('refresh-btn'),
+  settingsBtn: document.getElementById('settings-btn'),
+  inputContainer: document.getElementById('input-container')
+  };
 
-  // State
-  let chatHistory = [];
-  let isProcessing = false;
-  let currentTabId = null;
-
-  // Initialize
+  // Initialize application
   await init();
+});
 
-  async function init() {
-    try {
-      setupEventListeners();
-      await loadCurrentTab();
+function setupEventListeners() {
+  const { chatInput, sendBtn, refreshBtn, settingsBtn, inputContainer } = elements;
 
-      // Check for context actions (like translation)
-      await handleContextAction();
+  // Chat input events
+  chatInput?.addEventListener('input', handleInputChange);
+  chatInput?.addEventListener('keydown', handleKeyDown);
+  chatInput?.addEventListener('click', () => chatInput.focus());
 
-      // Show modern welcome message (only if no context action)
-      if (!await hasContextAction()) {
+  // Button events
+  sendBtn?.addEventListener('click', handleSendMessage);
+  refreshBtn?.addEventListener('click', handleRefresh);
+  settingsBtn?.addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+  // Input container focus
+  inputContainer?.addEventListener('click', (e) => {
+  if (e.target !== chatInput) chatInput?.focus();
+  });
+}
+
+function handleInputChange() {
+  const { chatInput, sendBtn } = elements;
+  if (!chatInput) return;
+
+  // Auto-resize textarea
+  chatInput.style.height = 'auto';
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+
+  // Update send button state
+  if (sendBtn) {
+  const shouldEnable = chatInput.value.trim() && !state.isProcessing;
+  sendBtn.disabled = !shouldEnable;
+  
+  // Update button appearance
+  if (shouldEnable) {
+    sendBtn.style.background = 'linear-gradient(135deg, #d0ff16 0%, #a8cc12 100%)';
+    sendBtn.style.color = '#000';
+  } else {
+    sendBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+    sendBtn.style.color = '#666666';
+  }
+  }
+}
+
+function handleKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+  e.preventDefault();
+  if (elements.sendBtn && !elements.sendBtn.disabled) {
+    handleSendMessage();
+  }
+  }
+}
+
+async function handleRefresh() {
+  if (state.isProcessing) return;
+
+  try {
+    // Clear chat history
+    state.chatHistory = [];
+
+    // Clear chat messages with smooth transition
+    const { chatMessages } = elements;
+    if (chatMessages) {
+      chatMessages.style.opacity = '0.5';
+      setTimeout(() => {
+        chatMessages.innerHTML = '';
+        chatMessages.style.opacity = '1';
         showWelcomeMessage();
-      }
-
-      // Enable the input
-      enableChatInput();
-
-      // Focus input after delay
-      setTimeout(() => {
-        if (chatInput) {
-          chatInput.focus();
-        }
-      }, 200);
-
-      if (sendBtn) {
-        sendBtn.disabled = true; // Will be enabled when user types
-      }
-    } catch (error) {
-      addMessage("❌ Failed to initialize. Please refresh the page.", "system");
+      }, 150);
     }
-  }
 
-  function setupEventListeners() {
-    // Chat input
+    // Reload current tab info
+    await loadCurrentTab();
+
+    // Clear input
+    const { chatInput } = elements;
     if (chatInput) {
-      chatInput.addEventListener('input', handleInputChange);
-      chatInput.addEventListener('keydown', handleKeyDown);
-      chatInput.addEventListener('click', handleInputClick);
+      chatInput.value = '';
+      handleInputChange();
     }
 
-    if (sendBtn) {
-      sendBtn.addEventListener('click', handleSendMessage);
-    }
+    // Focus input
+    setTimeout(() => chatInput?.focus(), 300);
 
-    // Refresh button
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', handleRefresh);
-    }
-
-    // Settings button
-    if (settingsBtn) {
-      settingsBtn.addEventListener('click', () => {
-        chrome.runtime.openOptionsPage();
-      });
-    }
-
-    // Input container click handler
-    const inputContainer = document.getElementById('input-container');
-    if (inputContainer) {
-      inputContainer.addEventListener('click', (e) => {
-        if (chatInput && e.target !== chatInput) {
-          chatInput.focus();
-        }
-      });
-    }
+  } catch (error) {
+    addMessage("❌ Failed to start new conversation. Please try again.", "ai");
+  }
   }
 
-  function handleInputChange() {
-    if (!chatInput) return;
+async function handleSendMessage(messageText = null, isRegenerate = false) {
+  const { chatInput } = elements;
+  const message = messageText || chatInput?.value.trim();
+  if (!message || state.isProcessing) return;
 
-    // Auto-resize textarea
-    chatInput.style.height = 'auto';
-    chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
-
-    // Enable/disable send button with modern styling
-    if (sendBtn) {
-      const shouldEnable = !(!chatInput.value.trim() || isProcessing);
-      sendBtn.disabled = !shouldEnable;
-      
-      // Update button appearance
-      if (shouldEnable && !isProcessing) {
-        sendBtn.style.background = 'linear-gradient(135deg, #d0ff16 0%, #a8cc12 100%)';
-        sendBtn.style.color = '#000';
-      } else {
-        sendBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-        sendBtn.style.color = '#666666';
-      }
-    }
-  }
-
-  function handleInputClick() {
+  // Add user message (skip if regenerating)
+  let userMessageEl = null;
+  if (!isRegenerate) {
+    userMessageEl = addMessage(message, "user");
     if (chatInput) {
-      chatInput.focus();
+      chatInput.value = "";
+      handleInputChange();
     }
   }
 
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (sendBtn && !sendBtn.disabled) {
-        handleSendMessage();
-      }
-    }
-  }
+  // Show immediate feedback
+  showTypingIndicator();
+  setProcessing(true, isRegenerate ? 'Regenerating...' : 'Analyzing...');
 
-  async function handleRefresh() {
-    if (isProcessing) return;
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'chatWithPage',
+      tabId: state.currentTabId,
+      question: message,
+      chatHistory: state.chatHistory.slice(-4).map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }))
+    });
 
-    try {
-      // Clear chat history
-      chatHistory = [];
-
-      // Clear chat messages with smooth transition
-      if (chatMessages) {
-        chatMessages.style.opacity = '0.5';
-        setTimeout(() => {
-          chatMessages.innerHTML = '';
-          chatMessages.style.opacity = '1';
-          showWelcomeMessage();
-        }, 150);
-      }
-
-      // Reload current tab info
-      await loadCurrentTab();
-
-      // Clear input
-      if (chatInput) {
-        chatInput.value = '';
-        handleInputChange();
-      }
-
-      // Focus input
-      setTimeout(() => {
-        if (chatInput) {
-          chatInput.focus();
-        }
-      }, 300);
-
-    } catch (error) {
-      addMessage("❌ Failed to start new conversation. Please try again.", "ai");
-    }
-  }
-
-  async function handleSendMessage() {
-    const message = chatInput.value.trim();
-    if (!message || isProcessing) return;
-
-    // Add user message with loading state
-    const userMessageEl = addMessage(message, "user");
-    chatInput.value = "";
-    handleInputChange();
-
-    // Set processing state
-    setProcessing(true);
-
-    // Add loading animation to user message
-    if (userMessageEl) {
-      userMessageEl.classList.add('loading');
-    }
-
-    try {
-      // Send to background script
-      const response = await chrome.runtime.sendMessage({
-        type: 'chatWithPage',
-        tabId: currentTabId,
-        question: message,
-        chatHistory: chatHistory.slice(-4).map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.content
-        }))
-      });
-
-      if (response && response.success) {
-        addMessage(response.data.response, "ai");
-      } else {
-        throw new Error(response?.error || 'Unknown error');
-      }
-    } catch (error) {
-      let errorMessage = "Sorry, I encountered an error. ";
-
-      if (error.message.includes('API key')) {
-        errorMessage += "Please check your API settings in the extension options.";
-      } else {
-        errorMessage += "Please try again or check your connection.";
-      }
-
-      addMessage(errorMessage, "ai");
-    } finally {
-      // Remove loading animation from user message
-      if (userMessageEl) {
-        userMessageEl.classList.remove('loading');
-      }
-
-      setProcessing(false);
-      if (chatInput) chatInput.focus();
-    }
-  }
-
-  function addMessage(content, sender, save = true) {
-    if (!chatMessages) return null;
-
-    // Remove welcome message if it exists
-    const welcomeMsg = chatMessages.querySelector('.welcome-message');
-    if (welcomeMsg) {
-      welcomeMsg.remove();
-    }
-
-    const messageEl = document.createElement('div');
-    messageEl.classList.add('message', sender);
-
-    // Create message header with avatar and info
-    const messageHeader = document.createElement('div');
-    messageHeader.classList.add('message-header');
-
-    const messageAvatar = document.createElement('div');
-    messageAvatar.classList.add('message-avatar');
-    messageAvatar.innerHTML = sender === 'user' ? 'U' : '<i class="fas fa-robot"></i>';
-
-    const messageSender = document.createElement('span');
-    messageSender.classList.add('message-sender');
-    messageSender.textContent = sender === 'user' ? 'You' : 'Nation Assistant';
-
-    const messageTime = document.createElement('span');
-    messageTime.classList.add('message-time');
-    messageTime.textContent = formatTime();
-
-    messageHeader.appendChild(messageAvatar);
-    messageHeader.appendChild(messageSender);
-    messageHeader.appendChild(messageTime);
-
-    // Create message content
-    const messageContent = document.createElement('div');
-    messageContent.classList.add('message-content');
-
-    // Enhanced Markdown formatting for structured content
-    let formattedContent = content
-      // Code blocks first (to protect them from other replacements)
-      .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-      // Headers (## and ###)
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      // Bold text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Italic text
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      // Blockquotes
-      .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
-      // Inline code (`code`)
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      // Convert double line breaks to paragraph breaks
-      .replace(/\n\s*\n/g, '</p><p>')
-      // Convert remaining single line breaks to spaces for natural flow
-      .replace(/\n/g, ' ')
-      // Clean up extra spaces
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // Wrap in paragraphs if content has paragraph breaks
-    if (formattedContent.includes('</p><p>')) {
-      formattedContent = '<p>' + formattedContent + '</p>';
-    } else if (formattedContent && !formattedContent.startsWith('<')) {
-      formattedContent = '<p>' + formattedContent + '</p>';
-    }
-
-    messageEl.appendChild(messageHeader);
-    messageEl.appendChild(messageContent);
-    chatMessages.appendChild(messageEl);
-
-    // Apply typing effect for AI messages
-    if (sender === 'ai') {
-      startTypingEffect(messageContent, formattedContent);
+    hideTypingIndicator();
+    
+    if (response?.success) {
+      addMessage(response.data.response, "ai");
     } else {
-      messageContent.innerHTML = formattedContent;
+      throw new Error(response?.error || 'Unknown error');
     }
+  } catch (error) {
+    hideTypingIndicator();
+    showError(error.message, {
+      apiKey: error.message.includes('API key'),
+      connection: error.message.includes('fetch') || error.message.includes('network')
+    });
+  } finally {
+    userMessageEl?.classList.remove('loading');
+    setProcessing(false);
+    chatInput?.focus();
+  }
+  }
 
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+function showError(message, context = {}) {
+  const errorEl = document.createElement('div');
+  errorEl.classList.add('message', 'system');
+  
+  let errorContent = `
+    <div class="error-message">
+      <div class="error-header">
+        <i class="fas fa-exclamation-triangle"></i>
+        Something went wrong
+      </div>
+      <div class="error-content">${message}</div>
+      <div class="error-actions">
+  `;
 
-    if (save) {
-      chatHistory.push({ content, sender, timestamp: new Date() });
-    }
+  if (context.apiKey) {
+    errorContent += `
+      <button class="error-action-btn" onclick="chrome.runtime.openOptionsPage()">
+        <i class="fas fa-cog"></i> Fix Settings
+      </button>
+    `;
+  }
 
-    return messageEl;
+  if (context.connection) {
+    errorContent += `
+      <button class="error-action-btn" onclick="location.reload()">
+        <i class="fas fa-refresh"></i> Retry
+      </button>
+    `;
+  }
+
+  errorContent += `
+      </div>
+    </div>
+  `;
+
+  errorEl.innerHTML = errorContent;
+  elements.chatMessages.appendChild(errorEl);
+  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  }
+
+function addMessage(content, sender, save = true) {
+  const { chatMessages } = elements;
+  if (!chatMessages) return null;
+
+  // Remove welcome message
+  chatMessages.querySelector('.welcome-message')?.remove();
+
+  // Create message structure
+  const messageEl = document.createElement('div');
+  messageEl.classList.add('message', sender);
+
+  const messageHeader = createMessageHeader(sender);
+  const messageContent = document.createElement('div');
+  messageContent.classList.add('message-content');
+
+  messageEl.appendChild(messageHeader);
+  messageEl.appendChild(messageContent);
+
+  // Add action buttons for AI messages
+  if (sender === 'ai') {
+    messageContent.appendChild(createMessageActions(content));
+  }
+
+  chatMessages.appendChild(messageEl);
+
+  // Handle content display
+  const formattedContent = formatAIResponse(content);
+  if (sender === 'ai') {
+    startTypingEffect(messageContent, formattedContent);
+  } else {
+    messageContent.innerHTML = formattedContent;
+  }
+
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  // Save to history
+  if (save) {
+    state.chatHistory.push({ content, sender, timestamp: new Date() });
+  }
+
+  return messageEl;
+  }
+
+function createMessageHeader(sender) {
+  const header = document.createElement('div');
+  header.classList.add('message-header');
+
+  const avatar = document.createElement('div');
+  avatar.classList.add('message-avatar');
+  avatar.innerHTML = sender === 'user' ? 'U' : '<i class="fas fa-robot"></i>';
+
+  const senderName = document.createElement('span');
+  senderName.classList.add('message-sender');
+  senderName.textContent = sender === 'user' ? 'You' : 'Nation Assistant';
+
+  const time = document.createElement('span');
+  time.classList.add('message-time');
+  time.textContent = formatTime();
+
+  header.append(avatar, senderName, time);
+  return header;
+  }
+
+function createMessageActions(content) {
+  const actionsEl = document.createElement('div');
+  actionsEl.classList.add('message-actions');
+  
+  actionsEl.innerHTML = `
+    <button class="action-btn" data-action="copy" title="Copy message">
+      <i class="fas fa-copy"></i> Copy
+    </button>
+    <button class="action-btn" data-action="regenerate" title="Regenerate response">
+      <i class="fas fa-redo"></i> Retry
+    </button>
+  `;
+
+  // Add event listeners for action buttons
+  actionsEl.addEventListener('click', (e) => {
+    const button = e.target.closest('.action-btn');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    handleMessageAction(action, content, button);
+  });
+
+  return actionsEl;
+  }
+
+function handleMessageAction(action, content, button) {
+  switch (action) {
+    case 'copy':
+      copyToClipboard(content, button);
+      break;
+    case 'regenerate':
+      regenerateLastResponse(button);
+      break;
+  }
+  }
+
+function copyToClipboard(text, button) {
+  navigator.clipboard.writeText(text).then(() => {
+    // Show success feedback
+    button.classList.add('success');
+    button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+    
+    setTimeout(() => {
+      button.classList.remove('success');
+      button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+    }, 2000);
+  }).catch(() => {
+    showError('Failed to copy to clipboard');
+  });
+  }
+
+function regenerateLastResponse(button) {
+  if (state.isProcessing) return;
+  
+  // Get the last user message
+  const lastUserMessage = state.chatHistory.slice().reverse().find(msg => msg.sender === 'user');
+  if (!lastUserMessage) return;
+
+  // Show loading state on button
+  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrying...';
+  button.disabled = true;
+
+  // Resend the last message
+  handleSendMessage(lastUserMessage.content, true);
   }
 
   // Modern welcome message
-  function showWelcomeMessage() {
-    if (!chatMessages) return;
+function showWelcomeMessage() {
+  const { chatMessages } = elements;
+  if (!chatMessages) return;
 
-    const welcomeEl = document.createElement('div');
-    welcomeEl.classList.add('welcome-message');
-    welcomeEl.innerHTML = `
-      <div class="welcome-icon">
-        <i class="fas fa-robot"></i>
-      </div>
-      <div class="welcome-title">Welcome to Nation Assistant</div>
-      <div class="welcome-subtitle">
-        I'm here to help you understand and analyze this webpage. 
-        Ask me anything about the content, and I'll provide insights and answers.
-      </div>
-    `;
+  const welcomeEl = document.createElement('div');
+  welcomeEl.classList.add('welcome-message');
+  welcomeEl.innerHTML = `
+    <div class="welcome-icon"><i class="fas fa-robot"></i></div>
+    <div class="welcome-title">Welcome to Nation Assistant</div>
+    <div class="welcome-subtitle">
+      I'm here to help you understand and analyze this webpage. 
+      Ask me anything about the content, and I'll provide insights and answers.
+    </div>
+  `;
 
-    chatMessages.appendChild(welcomeEl);
+  chatMessages.appendChild(welcomeEl);
   }
 
-  // Modern typing effect - more subtle and smooth
-  function startTypingEffect(element, finalContent) {
-    // Show typing indicator first
-    showTypingIndicator();
+  // Enhanced typing effect that works with formatted content
+function startTypingEffect(element, finalContent) {
+  // Typing indicator is already shown from handleSendMessage
+  // Just start typing the content immediately
+  
+  // For formatted content, use chunk-based typing
+  if (finalContent.includes('<')) {
+    typeFormattedContent(element, finalContent);
+  } else {
+    typeSimpleContent(element, finalContent);
+  }
+  }
+
+function typeFormattedContent(element, content) {
+  const chunks = getTypingChunks(content);
+  let currentChunk = 0;
+  
+  element.innerHTML = '';
+  
+  function typeNextChunk() {
+    if (currentChunk < chunks.length) {
+      element.innerHTML += chunks[currentChunk];
+      currentChunk++;
+      
+      // Scroll to bottom
+      if (elements.chatMessages) {
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+      }
+      
+      setTimeout(typeNextChunk, 50); // Faster for chunks
+    }
+  }
+  
+  typeNextChunk();
+  }
+
+function typeSimpleContent(element, content) {
+  let currentIndex = 0;
+  const typingSpeed = 20;
+  
+  element.innerHTML = '';
+  
+  function typeNextChar() {
+    if (currentIndex < content.length) {
+      element.innerHTML = content.substring(0, currentIndex + 1);
+      currentIndex++;
+      
+      if (elements.chatMessages) {
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+      }
+      
+      setTimeout(typeNextChar, typingSpeed);
+    }
+  }
+  
+  typeNextChar();
+  }
+
+function getTypingChunks(html) {
+  const chunks = [];
+  let currentChunk = '';
+  let inTag = false;
+  let tagDepth = 0;
+  
+  for (let i = 0; i < html.length; i++) {
+    const char = html[i];
     
-    setTimeout(() => {
-      hideTypingIndicator();
-      
-      // Simple character-by-character typing
-      let currentIndex = 0;
-      const typingSpeed = 20; // ms per character
-      
-      element.innerHTML = '';
-      
-      function typeNextChar() {
-        if (currentIndex < finalContent.length) {
-          element.innerHTML = finalContent.substring(0, currentIndex + 1);
-          currentIndex++;
-          
-          // Scroll to bottom
-          if (chatMessages) {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-          }
-          
-          setTimeout(typeNextChar, typingSpeed);
-        } else {
-          // Ensure final content is properly set
-          element.innerHTML = finalContent;
-        }
-      }
-      
-      typeNextChar();
-    }, 800);
-  }
-
-  function showTypingIndicator() {
-    const typingEl = document.createElement('div');
-    typingEl.classList.add('typing-indicator');
-    typingEl.id = 'typing-indicator';
-    typingEl.innerHTML = `
-      <div class="typing-dot"></div>
-      <div class="typing-dot"></div>
-      <div class="typing-dot"></div>
-    `;
+    if (char === '<') {
+      inTag = true;
+      tagDepth++;
+    } else if (char === '>') {
+      inTag = false;
+      tagDepth--;
+    }
     
-    chatMessages.appendChild(typingEl);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    currentChunk += char;
+    
+    // Create chunk when we complete a tag or reach text content
+    if (!inTag && tagDepth === 0 && (char === '>' || currentChunk.length >= 10)) {
+      chunks.push(currentChunk);
+      currentChunk = '';
+    }
+  }
+  
+  if (currentChunk) {
+    chunks.push(currentChunk);
+  }
+  
+  return chunks.filter(chunk => chunk.trim());
   }
 
-  function hideTypingIndicator() {
-    const typingEl = document.getElementById('typing-indicator');
-    if (typingEl) {
-      typingEl.remove();
+function showTypingIndicator() {
+  const { chatMessages } = elements;
+  if (!chatMessages) return;
+
+  const typingEl = document.createElement('div');
+  typingEl.classList.add('typing-indicator');
+  typingEl.id = 'typing-indicator';
+  typingEl.innerHTML = `
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+    <div class="typing-status">Thinking...</div>
+  `;
+  
+  chatMessages.appendChild(typingEl);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+function hideTypingIndicator() {
+  document.getElementById('typing-indicator')?.remove();
+  }
+
+  // Error handling utilities
+function detectErrorType(message) {
+  if (message.includes('API key') || message.includes('401') || message.includes('403')) {
+    return 'apiKey';
+  }
+  if (message.includes('fetch') || message.includes('network') || message.includes('timeout')) {
+    return 'network';
+  }
+  return 'generic';
+  }
+
+function setProcessing(processing, statusText = 'Thinking...') {
+  const { sendBtn, chatInput, inputContainer } = elements;
+  state.isProcessing = processing;
+
+  // Update send button
+  if (sendBtn) {
+    sendBtn.disabled = processing || !chatInput?.value.trim();
+    if (processing) {
+      sendBtn.innerHTML = '<div class="loading-spinner"></div>';
+      sendBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+      sendBtn.style.color = '#666666';
+    } else {
+      sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
+      handleInputChange();
     }
   }
 
-  function formatTime() {
-    const now = new Date();
-    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Update input container
+  if (inputContainer) {
+    inputContainer.style.transition = 'opacity 0.3s ease';
+    inputContainer.style.opacity = processing ? '0.7' : '1';
   }
 
-  function setProcessing(processing) {
-    isProcessing = processing;
-
-    // Update send button with modern loading state
-    if (sendBtn) {
-      sendBtn.disabled = processing || !chatInput?.value.trim();
-      if (processing) {
-        sendBtn.innerHTML = '<div class="loading-spinner"></div>';
-        sendBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-        sendBtn.style.color = '#666666';
-      } else {
-        sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
-        handleInputChange(); // Restore proper button state
-      }
-    }
-
-    // Update input container
-    const inputContainer = document.getElementById('input-container');
-    if (inputContainer) {
-      if (processing) {
-        inputContainer.style.opacity = '0.7';
-      } else {
-        inputContainer.style.opacity = '1';
-      }
-    }
-
-    // Disable input during processing
-    if (chatInput) {
-      chatInput.disabled = processing;
-      if (processing) {
-        chatInput.placeholder = 'Nation Assistant is thinking...';
-      } else {
-        chatInput.placeholder = 'Message Nation Assistant...';
-      }
-    }
+  // Update input placeholder
+  if (chatInput) {
+    chatInput.disabled = processing;
+    chatInput.placeholder = processing 
+      ? `Nation Assistant is ${statusText.toLowerCase()}...`
+      : 'Message Nation Assistant...';
   }
 
-  async function loadCurrentTab() {
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab) {
-        currentTabId = tab.id;
-
-        if (tabTitle) {
-          tabTitle.textContent = tab.title || 'Current Page';
-        }
-        if (tabUrl) {
-          tabUrl.textContent = tab.url ? new URL(tab.url).hostname : '';
-        }
-      }
-    } catch (error) {
-      // Silently handle error
-    }
+  // Update typing indicator
+  const typingStatus = document.querySelector('.typing-status');
+  if (typingStatus && processing) {
+    typingStatus.textContent = statusText;
   }
+  }
+
+async function loadCurrentTab() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) {
+      state.currentTabId = tab.id;
+      
+      const { tabTitle, tabUrl } = elements;
+      if (tabTitle) tabTitle.textContent = tab.title || 'Current Page';
+      if (tabUrl) tabUrl.textContent = tab.url ? new URL(tab.url).hostname : '';
+    }
+  } catch (error) {
+    // Silently handle error
+  }
+}
 
 
 
   // Enable chat input
-  function enableChatInput() {
-    if (chatInput) {
-      chatInput.disabled = false;
-      chatInput.removeAttribute('disabled');
-      chatInput.style.pointerEvents = 'auto';
-      chatInput.style.opacity = '1';
-    }
-
-    if (sendBtn) {
-      sendBtn.style.pointerEvents = 'auto';
-      sendBtn.style.opacity = '1';
-    }
-
-    const inputContainer = document.getElementById('input-container');
-    if (inputContainer) {
-      inputContainer.style.pointerEvents = 'auto';
-    }
+function enableChatInput() {
+  const { chatInput, sendBtn } = elements;
+  
+  if (chatInput) {
+    chatInput.disabled = false;
+    chatInput.removeAttribute('disabled');
+    chatInput.style.pointerEvents = 'auto';
+    chatInput.style.opacity = '1';
   }
+
+  if (sendBtn) {
+    sendBtn.style.pointerEvents = 'auto';
+    sendBtn.style.opacity = '1';
+  }
+
+  const inputContainer = document.getElementById('input-container');
+  if (inputContainer) {
+    inputContainer.style.pointerEvents = 'auto';
+  }
+}
 
   // Check if there's a context action
-  async function hasContextAction() {
-    try {
-      const result = await chrome.storage.local.get(['contextAction']);
-      return result.contextAction && (Date.now() - result.contextAction.timestamp < 30000); // 30 seconds
-    } catch (error) {
-      return false;
-    }
+async function hasContextAction() {
+  try {
+    const result = await chrome.storage.local.get(['contextAction']);
+    return result.contextAction && (Date.now() - result.contextAction.timestamp < 30000); // 30 seconds
+  } catch (error) {
+    return false;
   }
+}
 
   // Handle context actions (like translation)
-  async function handleContextAction() {
-    try {
-      const result = await chrome.storage.local.get(['contextAction']);
-      const contextAction = result.contextAction;
+async function handleContextAction() {
+  try {
+    const result = await chrome.storage.local.get(['contextAction']);
+    const contextAction = result.contextAction;
 
-      if (!contextAction || (Date.now() - contextAction.timestamp > 30000)) {
-        return; // No action or too old
-      }
-
-      if (contextAction.action === 'translate') {
-        // Show original text
-        addMessage(`Original text: "${contextAction.originalText}"`, "user", false);
-        
-        if (contextAction.loading) {
-          // Show loading message
-          const loadingMsg = addMessage(`Translating to ${contextAction.targetLanguage}...`, "ai", false);
-          loadingMsg.classList.add('loading');
-          loadingMsg.id = 'translation-loading';
-        } else if (contextAction.error) {
-          // Show error
-          addMessage(`Translation error: ${contextAction.error}`, "system", false);
-        } else if (contextAction.translation) {
-          // Show translation result
-          addMessage(`Translation (${contextAction.targetLanguage}): "${contextAction.translation}"`, "ai", false);
-          addMessage("You can now ask questions about this translation or continue the conversation!", "system", false);
-        }
-      } else if (contextAction.action === 'analyze') {
-        // Handle text analysis (existing functionality)
-        addMessage(`Selected text: "${contextAction.text}"`, "user", false);
-        addMessage("I can help you analyze this text. What would you like to know about it?", "ai", false);
-      }
-
-      // Don't clear the context action if it's still loading
-      if (!contextAction.loading) {
-        await chrome.storage.local.remove(['contextAction']);
-      }
-    } catch (error) {
-      console.error('Error handling context action:', error);
+    if (!contextAction || (Date.now() - contextAction.timestamp > 30000)) {
+      return; // No action or too old
     }
+
+    if (contextAction.action === 'translate') {
+      // Show original text
+      addMessage(`Original text: "${contextAction.originalText}"`, "user", false);
+      
+      if (contextAction.loading) {
+        // Show loading message
+        const loadingMsg = addMessage(`Translating to ${contextAction.targetLanguage}...`, "ai", false);
+        loadingMsg.classList.add('loading');
+        loadingMsg.id = 'translation-loading';
+      } else if (contextAction.error) {
+        // Show error
+        addMessage(`Translation error: ${contextAction.error}`, "system", false);
+      } else if (contextAction.translation) {
+        // Show translation result
+        addMessage(`Translation (${contextAction.targetLanguage}): "${contextAction.translation}"`, "ai", false);
+        addMessage("You can now ask questions about this translation or continue the conversation!", "system", false);
+      }
+    } else if (contextAction.action === 'analyze') {
+      // Handle text analysis (existing functionality)
+      addMessage(`Selected text: "${contextAction.text}"`, "user", false);
+      addMessage("I can help you analyze this text. What would you like to know about it?", "ai", false);
+    }
+
+    // Don't clear the context action if it's still loading
+    if (!contextAction.loading) {
+      await chrome.storage.local.remove(['contextAction']);
+    }
+  } catch (error) {
+    console.error('Error handling context action:', error);
+  }
   }
 
-  // Listen for translation updates from background
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'TRANSLATION_READY') {
-      // Remove loading message
-      const loadingMsg = document.getElementById('translation-loading');
-      if (loadingMsg) {
-        loadingMsg.remove();
-      }
-      
-      // Add translation result
-      addMessage(`Translation: "${message.translation}"`, "ai", false);
-      addMessage("You can now ask questions about this translation or continue the conversation!", "system", false);
-      
-      // Clear the context action
-      chrome.storage.local.remove(['contextAction']);
-    } else if (message.type === 'TRANSLATION_ERROR') {
-      // Remove loading message
-      const loadingMsg = document.getElementById('translation-loading');
-      if (loadingMsg) {
-        loadingMsg.remove();
-      }
-      
-      // Show error
-      addMessage(`Translation error: ${message.error}`, "system", false);
-      
-      // Clear the context action
-      chrome.storage.local.remove(['contextAction']);
+// Listen for translation updates from background
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'TRANSLATION_READY') {
+    // Remove loading message
+    const loadingMsg = document.getElementById('translation-loading');
+    if (loadingMsg) {
+      loadingMsg.remove();
     }
-  });
+    
+    // Add translation result
+    addMessage(`Translation: "${message.translation}"`, "ai", false);
+    addMessage("You can now ask questions about this translation or continue the conversation!", "system", false);
+    
+    // Clear the context action
+    chrome.storage.local.remove(['contextAction']);
+  } else if (message.type === 'TRANSLATION_ERROR') {
+    // Remove loading message
+    const loadingMsg = document.getElementById('translation-loading');
+    if (loadingMsg) {
+      loadingMsg.remove();
+    }
+    
+    // Show error
+    addMessage(`Translation error: ${message.error}`, "system", false);
+    
+    // Clear the context action
+    chrome.storage.local.remove(['contextAction']);
+  }
 });

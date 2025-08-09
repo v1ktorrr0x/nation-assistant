@@ -21,8 +21,20 @@ class LLMService {
     }
   }
 
+  async initWithConfig(config) {
+    if (!config.apiKey?.trim()) {
+      throw new Error('No API key provided in test configuration');
+    }
+    this.apiKey = config.apiKey.trim();
+    this.baseUrl = config.baseUrl?.trim() || 'https://open.service.crestal.network/v1';
+    this.model = config.model || 'gpt-4.1-nano';
+    this.maxTokens = config.maxTokens || 300;
+    this.temperature = config.temperature || 0.7;
+    this.initialized = true;
+  }
+
   async loadSettings() {
-    const result = await chrome.storage.sync.get(['crestalApiKey']);
+    const result = await chrome.storage.sync.get(['crestalApiKey', 'apiBaseUrl']);
     if (!result.crestalApiKey?.trim()) {
       throw new Error('No Crestal API key configured');
     }
@@ -30,7 +42,7 @@ class LLMService {
     this.model = 'gpt-4.1-nano';
     this.maxTokens = 300;
     this.temperature = 0.7;
-    this.baseUrl = 'https://open.service.crestal.network/v1';
+    this.baseUrl = result.apiBaseUrl?.trim() || 'https://open.service.crestal.network/v1';
   }
 
   async makeRequest(messages, options = {}) {
@@ -73,29 +85,29 @@ class LLMService {
   formatResponse(rawResponse) {
     try {
       const jsonResponse = JSON.parse(rawResponse);
-      
+
       if (jsonResponse.page_overview) {
         let formatted = jsonResponse.page_overview;
-        
+
         if (jsonResponse.key_features && jsonResponse.key_features.length > 0) {
           formatted += `\n\nKey features include: ${jsonResponse.key_features.join(', ')}.`;
         }
-        
+
         if (jsonResponse.target_audience) {
           formatted += `\n\nThis appears to be aimed at ${jsonResponse.target_audience.toLowerCase()}.`;
         }
-        
+
         if (jsonResponse.call_to_action) {
           formatted += `\n\n${jsonResponse.call_to_action}`;
         }
-        
+
         return formatted;
       }
-      
+
       if (typeof jsonResponse === 'object') {
         return Object.values(jsonResponse).join(' ');
       }
-      
+
       return rawResponse;
     } catch (error) {
       return rawResponse;

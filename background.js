@@ -43,7 +43,7 @@ class NationAssistantBackground {
 
         chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
-                this.ensureContentScript(tabId).catch(() => {});
+                this.ensureContentScript(tabId).catch(() => { });
             }
         });
     }
@@ -52,7 +52,7 @@ class NationAssistantBackground {
      * Handle storage changes
      */
     async handleStorageChange(changes) {
-        if (changes.crestalApiKey) {
+        if (changes.crestalApiKey || changes.apiBaseUrl) {
             await this.llmService.loadSettings();
         }
     }
@@ -147,7 +147,15 @@ class NationAssistantBackground {
                     break;
 
                 case 'testConnection':
-                    await this.llmService.makeRequest([{ role: 'user', content: 'test' }], { maxTokens: 10 });
+                    if (message.testConfig) {
+                        // Test with provided configuration (from options page)
+                        const tempService = new LLMService();
+                        await tempService.initWithConfig(message.testConfig);
+                        await tempService.makeRequest([{ role: 'user', content: 'test' }], { maxTokens: 10 });
+                    } else {
+                        // Test with current stored configuration
+                        await this.llmService.makeRequest([{ role: 'user', content: 'test' }], { maxTokens: 10 });
+                    }
                     sendResponse({ success: true, data: { connected: true } });
                     break;
 
@@ -236,13 +244,13 @@ class NationAssistantBackground {
         try {
             const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
             if (response?.pong) return;
-        } catch {}
-        
+        } catch { }
+
         await chrome.scripting.executeScript({
             target: { tabId },
             files: ['content.js']
         });
-        
+
         await new Promise(resolve => setTimeout(resolve, 100));
         const verify = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
         if (!verify?.pong) throw new Error('Content script injection failed');
@@ -253,7 +261,7 @@ class NationAssistantBackground {
      */
     async handleChatWithPage(message) {
         const { tabId, question = "", chatHistory = [] } = message;
-        
+
         const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
         if (!tab) throw new Error('No active tab');
 
@@ -263,7 +271,7 @@ class NationAssistantBackground {
         if (!response?.pageContent) throw new Error('No page content');
 
         const llmResponse = await this.llmService.chatWithPage(response.pageContent, question, chatHistory);
-        
+
         return { success: true, data: { response: llmResponse } };
     }
 
@@ -309,7 +317,7 @@ class NationAssistantBackground {
             });
 
             const translation = await this.llmService.translateText(selectedText, targetLanguage);
-            
+
             await chrome.storage.local.set({
                 contextAction: {
                     action: 'translate',
@@ -325,11 +333,11 @@ class NationAssistantBackground {
             chrome.runtime.sendMessage({
                 type: 'TRANSLATION_READY',
                 translation: translation
-            }).catch(() => {});
-            
+            }).catch(() => { });
+
         } catch (error) {
             console.error('[Background] Translation error:', error);
-            
+
             await chrome.storage.local.set({
                 contextAction: {
                     action: 'translate',
@@ -346,7 +354,7 @@ class NationAssistantBackground {
             chrome.runtime.sendMessage({
                 type: 'TRANSLATION_ERROR',
                 error: error.message
-            }).catch(() => {});
+            }).catch(() => { });
         }
     }
 
