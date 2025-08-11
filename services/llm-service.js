@@ -125,7 +125,7 @@ class LLMService {
     const messages = [
       {
         role: 'system',
-        content: `You are a helpful web content assistant. Answer questions about web pages naturally and conversationally. Keep responses concise unless the user asks for detailed information.`
+        content: `You are a helpful web content assistant. Always respond in English. Answer questions about web pages naturally and conversationally. Keep responses concise unless the user asks for detailed information.`
       },
       ...chatHistory.slice(-3),
       {
@@ -139,6 +139,49 @@ ${pageContent}`
 
     const rawResponse = await this.makeRequest(messages);
     return this.formatResponse(rawResponse);
+  }
+
+  /**
+   * Smart translate - auto-detect source language and choose best target
+   */
+  async smartTranslate(text) {
+    const messages = [
+      {
+        role: 'user',
+        content: `You are a professional translator. Analyze this text and:
+1. Detect the source language
+2. Choose the most appropriate target language (English if source is non-English, or Spanish/French if source is English)
+3. Provide an accurate translation
+
+Respond in this exact JSON format:
+{
+  "detectedLanguage": "detected language name",
+  "targetLanguage": "target language name", 
+  "translation": "translated text"
+}
+
+Text to analyze and translate:
+${text}`
+      }
+    ];
+
+    const response = await this.makeRequest(messages, { maxTokens: 600 });
+    
+    try {
+      const parsed = JSON.parse(response.trim());
+      return {
+        detectedLanguage: parsed.detectedLanguage,
+        targetLanguage: parsed.targetLanguage,
+        translation: parsed.translation
+      };
+    } catch (error) {
+      // Fallback if JSON parsing fails
+      return {
+        detectedLanguage: 'Unknown',
+        targetLanguage: 'English',
+        translation: response.trim()
+      };
+    }
   }
 
   /**

@@ -83,32 +83,52 @@ class NationAssistantBackground {
             contexts: ['selection']
         });
 
-        // Add translate submenu
+        // Add quick translate options - flatten menu structure
         chrome.contextMenus.create({
-            id: 'translate',
+            id: 'translate-auto',
             parentId: 'nation-assistant',
-            title: 'Translate',
+            title: '🌐 Quick Translate',
             contexts: ['selection']
         });
 
+        // Add most common languages directly under main menu
+        const quickLanguages = [
+            { id: 'translate-spanish', title: '🇪🇸 Spanish', code: 'es' },
+            { id: 'translate-french', title: '🇫🇷 French', code: 'fr' },
+            { id: 'translate-german', title: '🇩🇪 German', code: 'de' },
+            { id: 'translate-chinese', title: '🇨🇳 Chinese', code: 'zh' }
+        ];
 
-        const languages = [
-            { id: 'translate-spanish', title: 'Spanish', code: 'es' },
-            { id: 'translate-french', title: 'French', code: 'fr' },
-            { id: 'translate-german', title: 'German', code: 'de' },
+        quickLanguages.forEach(lang => {
+            chrome.contextMenus.create({
+                id: lang.id,
+                parentId: 'nation-assistant',
+                title: lang.title,
+                contexts: ['selection']
+            });
+        });
+
+        // Add "More Languages" submenu for less common ones
+        chrome.contextMenus.create({
+            id: 'translate-more',
+            parentId: 'nation-assistant',
+            title: '🌍 More Languages...',
+            contexts: ['selection']
+        });
+
+        const moreLanguages = [
             { id: 'translate-italian', title: 'Italian', code: 'it' },
             { id: 'translate-portuguese', title: 'Portuguese', code: 'pt' },
             { id: 'translate-russian', title: 'Russian', code: 'ru' },
-            { id: 'translate-chinese', title: 'Chinese', code: 'zh' },
             { id: 'translate-japanese', title: 'Japanese', code: 'ja' },
             { id: 'translate-korean', title: 'Korean', code: 'ko' },
             { id: 'translate-arabic', title: 'Arabic', code: 'ar' }
         ];
 
-        languages.forEach(lang => {
+        moreLanguages.forEach(lang => {
             chrome.contextMenus.create({
                 id: lang.id,
-                parentId: 'translate',
+                parentId: 'translate-more',
                 title: lang.title,
                 contexts: ['selection']
             });
@@ -193,6 +213,9 @@ class NationAssistantBackground {
                     });
                     await chrome.sidePanel.open({ tabId: tab.id });
                     break;
+                case 'translate-auto':
+                    this.startSmartTranslation(info.selectionText, tab);
+                    break;
                 case 'translate-spanish':
                     this.startTranslation(info.selectionText, 'Spanish', tab);
                     break;
@@ -202,6 +225,9 @@ class NationAssistantBackground {
                 case 'translate-german':
                     this.startTranslation(info.selectionText, 'German', tab);
                     break;
+                case 'translate-chinese':
+                    this.startTranslation(info.selectionText, 'Chinese', tab);
+                    break;
                 case 'translate-italian':
                     this.startTranslation(info.selectionText, 'Italian', tab);
                     break;
@@ -210,9 +236,6 @@ class NationAssistantBackground {
                     break;
                 case 'translate-russian':
                     this.startTranslation(info.selectionText, 'Russian', tab);
-                    break;
-                case 'translate-chinese':
-                    this.startTranslation(info.selectionText, 'Chinese', tab);
                     break;
                 case 'translate-japanese':
                     this.startTranslation(info.selectionText, 'Japanese', tab);
@@ -276,6 +299,26 @@ class NationAssistantBackground {
     }
 
     /**
+     * Start smart translation (auto-detect best target language)
+     */
+    startSmartTranslation(selectedText, tab) {
+        try {
+            if (!selectedText || !selectedText.trim()) {
+                throw new Error('No text selected for translation');
+            }
+
+            chrome.sidePanel.open({ tabId: tab.id }).then(() => {
+                this.handleSmartTranslation(selectedText, tab);
+            }).catch(error => {
+                console.error('[Background] Failed to open sidepanel:', error);
+            });
+
+        } catch (error) {
+            console.error('[Background] Smart translation start error:', error);
+        }
+    }
+
+    /**
      * Start translation
      */
     startTranslation(selectedText, targetLanguage, tab) {
@@ -292,6 +335,77 @@ class NationAssistantBackground {
 
         } catch (error) {
             console.error('[Background] Translation start error:', error);
+        }
+    }
+
+    /**
+     * Handle smart translation (auto-detect target language)
+     */
+    async handleSmartTranslation(selectedText, tab) {
+        try {
+            if (!selectedText || !selectedText.trim()) {
+                throw new Error('No text selected for translation');
+            }
+
+            await chrome.storage.local.set({
+                contextAction: {
+                    action: 'translate',
+                    originalText: selectedText,
+                    translation: null,
+                    targetLanguage: 'Auto-detected',
+                    loading: true,
+                    smart: true,
+                    timestamp: Date.now(),
+                    tabId: tab.id
+                }
+            });
+
+            // Use LLM to detect language and translate to most appropriate target
+            const smartTranslation = await this.llmService.smartTranslate(selectedText);
+
+            await chrome.storage.local.set({
+                contextAction: {
+                    action: 'translate',
+                    originalText: selectedText,
+                    translation: smartTranslation.translation,
+                    targetLanguage: smartTranslation.targetLanguage,
+                    detectedLanguage: smartTranslation.detectedLanguage,
+                    loading: false,
+                    smart: true,
+                    timestamp: Date.now(),
+                    tabId: tab.id
+                }
+            });
+
+            chrome.runtime.sendMessage({
+                type: 'TRANSLATION_READY',
+                translation: smartTranslation.translation,
+                targetLanguage: smartTranslation.targetLanguage,
+                detectedLanguage: smartTranslation.detectedLanguage,
+                smart: true
+            }).catch(() => { });
+
+        } catch (error) {
+            console.error('[Background] Smart translation error:', error);
+
+            await chrome.storage.local.set({
+                contextAction: {
+                    action: 'translate',
+                    originalText: selectedText,
+                    translation: null,
+                    targetLanguage: 'Auto-detected',
+                    loading: false,
+                    error: error.message,
+                    smart: true,
+                    timestamp: Date.now(),
+                    tabId: tab.id
+                }
+            });
+
+            chrome.runtime.sendMessage({
+                type: 'TRANSLATION_ERROR',
+                error: error.message
+            }).catch(() => { });
         }
     }
 
@@ -332,7 +446,8 @@ class NationAssistantBackground {
 
             chrome.runtime.sendMessage({
                 type: 'TRANSLATION_READY',
-                translation: translation
+                translation: translation,
+                targetLanguage: targetLanguage
             }).catch(() => { });
 
         } catch (error) {

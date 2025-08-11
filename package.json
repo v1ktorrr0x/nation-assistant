@@ -1,0 +1,46 @@
+{
+  "name": "nation-assistant",
+  "version": "2.0.0",
+  "description": "AI-powered Chrome extension for intelligent web content analysis",
+  "main": "background.js",
+  "scripts": {
+    "build": "echo 'No build process required for this extension'",
+    "test": "echo 'No tests specified'",
+    "lint": "echo 'Linting not configured'",
+    "package": "zip -r nation-assistant-v2.0.0.zip . -x '*.git*' '*.vscode*' 'node_modules/*' 'package*.json'"
+  },
+  "keywords": [
+    "chrome-extension",
+    "ai",
+    "web-analysis",
+    "content-analysis",
+    "llm",
+    "productivity"
+  ],
+  "author": "Nation Browser Suite",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/nation-assistant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/nation-assistant/issues"
+  },
+  "homepage": "https://github.com/your-username/nation-assistant#readme",
+  "engines": {
+    "chrome": ">=88"
+  },
+  "manifest": {
+    "version": 3,
+    "permissions": [
+      "activeTab",
+      "tabs",
+      "storage",
+      "scripting",
+      "sidePanel",
+      "contextMenus",
+      "webNavigation",
+      "notifications"
+    ]
+  }
+}

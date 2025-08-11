@@ -63,7 +63,6 @@ class OptionsManager {
       // Settings loaded successfully
     } catch (error) {
       // Silent fail for loading settings - user will see when they try to save
-      console.error('Failed to load settings:', error);
     }
   }
 
