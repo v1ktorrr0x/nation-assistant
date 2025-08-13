@@ -42,26 +42,22 @@ AI-powered Chrome extension that provides intelligent web content analysis throu
 
 ## 📖 Usage
 
-### **Basic Usage**
-- **Click Extension Icon**: Opens sidebar with smart suggestions for the current page
-- **Select & Right-Click**: Instant analysis of selected text
-- **Type Questions**: Ask anything about the page content
+### **Quick Start**
+1. **Install & configure** your Crestal Network API key
+2. **Click the extension icon** to open the AI sidebar
+3. **Ask questions** about any webpage you're viewing
+4. **Right-click selected text** for instant translation and analysis
 
-### **Advanced Features**
-- **Streaming Control**: Click streaming responses to speed up, double-click for instant completion
-- **Message Actions**: Copy responses, regenerate answers, or bookmark important information
-- **Keyboard Shortcuts**: 
-  - `Enter` - Send message
-  - `Shift+Enter` - New line
-  - `Escape` - Clear input
-  - `Ctrl/Cmd+K` - Focus input
-  - `Ctrl/Cmd+R` - Retry last message
+### **Documentation**
+- 📚 **[Complete Usage Guide](USAGE_GUIDE.md)** - Detailed instructions and features
+- ⚡ **[Quick Reference](QUICK_REFERENCE.md)** - Essential shortcuts and commands
+- 🎯 **[Best Practices](USAGE_GUIDE.md#-tips--best-practices)** - Tips for better results
 
-### **Context Menu Options**
-- **Analyze Page** - Complete page analysis
-- **Chat with Selection** - Analyze selected text
-- **Quick Translate** - Auto-detect and translate
-- **Translate to [Language]** - Direct translation options
+### **Key Features**
+- **Smart Chat**: AI-powered analysis of any webpage with streaming responses
+- **Context Menu**: Right-click text for instant translation and analysis  
+- **Multi-language**: Auto-detect translation with 12+ language options
+- **Terminal UI**: Cyberpunk-inspired interface with smooth animations
 
 ## ⚙️ Configuration
 
