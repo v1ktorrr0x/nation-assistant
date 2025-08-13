@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nation Assistant - Minimal Formatting Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/nation-theme.css">
+    <link rel="stylesheet" href="styles/sidepanel.css">
+</head>
+<body>
+    <div class="modern-chat-app">
+        <header class="nation-header">
+            <div class="header-content">
+                <div class="brand-section">
+                    <div class="logo-container">
+                        <img src="title.png" alt="Nation Assistant" class="nation-logo">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <!-- Test messages will be inserted here -->
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Test content that preserves original LLM structure
+        const testResponses = [
+            // Natural response with minimal markdown
+            `This page appears to be about web development and modern JavaScript frameworks.
+
+**Key points I noticed:**
+- The content focuses on React and Vue.js
+- There are code examples showing component structure
+- The documentation includes best practices
+
+Here's what I found most interesting:
+
+The examples show how to create reusable components. For instance, you can use \`useState\` for managing component state.
+
+**Overall assessment:** This is a comprehensive guide that would be helpful for developers learning modern frontend frameworks.`,
+
+            // Response with explicit markdown elements
+            `# Analysis Results
+
+Based on my review of this webpage, here are the main findings:
+
+## Content Structure
+The page is well-organized with clear sections covering:
+
+- Introduction to the topic
+- Detailed explanations with examples
+- Best practices and recommendations
+
+## Code Examples
+There are several code blocks showing:
+
+\`\`\`javascript
+function ExampleComponent() {
+  const [state, setState] = useState(null);
+  return <div>{state}</div>;
+}
+\`\`\`
+
+## Recommendations
+> This resource would be valuable for both beginners and experienced developers.
+
+The content maintains good balance between theory and practical examples.`,
+
+            // Natural conversational response
+            `I can see this is a technical documentation page. The content covers several important topics related to software development.
+
+What stands out to me:
+
+The writing style is clear and accessible. The authors have done a good job explaining complex concepts in simple terms. There are practical examples throughout that help illustrate the main points.
+
+The page structure flows logically from basic concepts to more advanced topics. This makes it easy to follow along whether you're a beginner or looking to refresh your knowledge.
+
+**My recommendation:** This would be a great resource to bookmark for future reference. The examples are particularly well-crafted and show real-world usage patterns.`
+        ];
+
+        // Simple formatter class for testing
+        class MinimalFormatter {
+            format(content) {
+                if (!content) return '';
+                
+                // Very minimal processing - preserve original structure
+                return content
+                    // Only process explicit markdown
+                    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                    .replace(/`(.+?)`/g, '<code>$1</code>')
+                    .replace(/^- (.+)$/gm, '• $1')
+                    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+                    .replace(/```(\w+)?\n?([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+                    .replace(/(https?:\/\/[^\s<>"'`]+)/g, '<a href="$1" target="_blank">$1</a>')
+                    // Convert paragraphs (preserve line breaks)
+                    .split('\n\n')
+                    .map(para => para.trim() ? `<p>${para.replace(/\n/g, '<br>')}</p>` : '')
+                    .filter(para => para)
+                    .join('\n');
+            }
+        }
+
+        const formatter = new MinimalFormatter();
+
+        // Initialize test
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatMessages = document.getElementById('chat-messages');
+            
+            testResponses.forEach((response, index) => {
+                setTimeout(() => {
+                    // Create message element
+                    const messageEl = document.createElement('div');
+                    messageEl.classList.add('message', 'ai');
+                    
+                    const messageHeader = document.createElement('div');
+                    messageHeader.classList.add('message-header');
+                    messageHeader.innerHTML = `
+                        <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                        <span class="message-sender">Nation Assistant</span>
+                        <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    `;
+                    
+                    const messageContent = document.createElement('div');
+                    messageContent.classList.add('message-content');
+                    
+                    messageEl.appendChild(messageHeader);
+                    messageEl.appendChild(messageContent);
+                    chatMessages.appendChild(messageEl);
+                    
+                    // Format and display content
+                    const formattedContent = formatter.format(response);
+                    messageContent.innerHTML = formattedContent;
+                    
+                    // Scroll to bottom
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, index * 2000);
+            });
+        });
+    </script>
+</body>
+</html>

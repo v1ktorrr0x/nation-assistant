@@ -1525,6 +1525,71 @@
             border-bottom-color: #E8FF5C;
         }
 
+        /* API Selector Styles */
+        .api-selector-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .api-option {
+            position: relative;
+        }
+
+        .api-radio {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .api-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(208, 255, 22, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Space Mono', monospace;
+            backdrop-filter: blur(8px);
+        }
+
+        .api-label:hover {
+            border-color: rgba(208, 255, 22, 0.4);
+            background: rgba(208, 255, 22, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .api-radio:checked + .api-label {
+            border-color: rgba(208, 255, 22, 0.6);
+            background: rgba(208, 255, 22, 0.08);
+        }
+
+        .api-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #D0FF16;
+            letter-spacing: 0.02em;
+        }
+
+        .api-indicator {
+            opacity: 0;
+            transition: all 0.3s ease;
+            color: #D0FF16;
+            font-size: 1.1rem;
+        }
+
+        .api-radio:checked + .api-label .api-indicator {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .api-label:hover .api-indicator {
+            opacity: 0.6;
+        }
+
 
 
 
@@ -2201,23 +2266,37 @@
 
                         <div class="input-field">
                             <div class="field-header">
-                                <label for="base-url" class="field-label">
+                                <label class="field-label">
                                     <i class="fas fa-server"></i>
-                                    <span>API Base URL</span>
+                                    <span>API Provider</span>
                                 </label>
                                 <div class="field-status">
-                                    <i class="fas fa-globe"></i>
-                                    <span>Custom</span>
+                                    <i class="fas fa-network-wired"></i>
+                                    <span>Select</span>
                                 </div>
                             </div>
-                            <div class="input-container">
-                                <input type="url" id="base-url" class="neural-input"
-                                    placeholder="https://open.service.crestal.network/v1">
-                                <div class="input-border"></div>
-                                <div class="input-focus-line"></div>
+                            <div class="api-selector-container">
+                                <div class="api-option">
+                                    <input type="radio" id="api-nation" name="api-provider" value="https://open.service.crestal.network/v1" class="api-radio" checked>
+                                    <label for="api-nation" class="api-label">
+                                        <div class="api-name">Nation.fun API</div>
+                                        <div class="api-indicator">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="api-option">
+                                    <input type="radio" id="api-intentki" name="api-provider" value="https://ikai-open.service.crestal.network/v1" class="api-radio">
+                                    <label for="api-intentki" class="api-label">
+                                        <div class="api-name">IntentKi.AI API</div>
+                                        <div class="api-indicator">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                    </label>
+                                </div>
                             </div>
                             <div class="field-info">
-                                <span>Custom API endpoint (leave empty for default Crestal Network)</span>
+                                <span>Select your preferred API provider for AI completions</span>
                             </div>
                         </div>
 

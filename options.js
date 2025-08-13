@@ -55,10 +55,15 @@ class OptionsManager {
         apiKeyElement.value = result.crestalApiKey;
       }
 
-      const baseUrlElement = document.getElementById('base-url');
-      if (baseUrlElement && result.apiBaseUrl) {
-        baseUrlElement.value = result.apiBaseUrl;
-      }
+      // Handle API provider selection
+      const savedApiUrl = result.apiBaseUrl || 'https://open.service.crestal.network/v1';
+      const apiRadios = document.querySelectorAll('input[name="api-provider"]');
+      
+      apiRadios.forEach(radio => {
+        if (radio.value === savedApiUrl) {
+          radio.checked = true;
+        }
+      });
 
       // Settings loaded successfully
     } catch (error) {
@@ -69,14 +74,18 @@ class OptionsManager {
   async saveSettings() {
     const saveBtn = document.querySelector('.save-btn');
     const apiKeyElement = document.getElementById('api-key');
-    const baseUrlElement = document.getElementById('base-url');
+    const selectedApiProvider = document.querySelector('input[name="api-provider"]:checked');
 
     if (!apiKeyElement) {
       throw new Error('Nation Agent API key field not found');
     }
 
+    if (!selectedApiProvider) {
+      throw new Error('Please select an API provider');
+    }
+
     const apiKey = apiKeyElement.value.trim();
-    const baseUrl = baseUrlElement ? baseUrlElement.value.trim() : '';
+    const baseUrl = selectedApiProvider.value;
 
     if (!apiKey) {
       throw new Error('Nation Agent API key is required');
@@ -86,12 +95,9 @@ class OptionsManager {
     this.setButtonState(saveBtn, 'loading');
 
     try {
-      // Use custom base URL or default to Crestal Network
-      const finalBaseUrl = baseUrl || 'https://open.service.crestal.network/v1';
-
       const settings = {
         crestalApiKey: apiKey,
-        apiBaseUrl: finalBaseUrl,
+        apiBaseUrl: baseUrl,
         llmModel: 'gpt-4.1-nano',
         llmMaxTokens: 300,
         llmTemperature: 0.7
@@ -121,7 +127,7 @@ class OptionsManager {
   async testConnection() {
     const testBtn = document.getElementById('test-btn');
     const apiKeyElement = document.getElementById('api-key');
-    const baseUrlElement = document.getElementById('base-url');
+    const selectedApiProvider = document.querySelector('input[name="api-provider"]:checked');
 
     if (!testBtn) {
       throw new Error('Test button not found');
@@ -131,8 +137,16 @@ class OptionsManager {
       throw new Error('API key field not found');
     }
 
+    if (!selectedApiProvider) {
+      this.setButtonState(testBtn, 'error');
+      setTimeout(() => {
+        this.setButtonState(testBtn, 'default');
+      }, 3000);
+      throw new Error('Please select an API provider to test');
+    }
+
     const apiKey = apiKeyElement.value.trim();
-    const baseUrl = baseUrlElement ? baseUrlElement.value.trim() : '';
+    const baseUrl = selectedApiProvider.value;
 
     if (!apiKey) {
       this.setButtonState(testBtn, 'error');
@@ -146,14 +160,11 @@ class OptionsManager {
     this.setButtonState(testBtn, 'loading');
 
     try {
-      // Use current input values for testing
-      const finalBaseUrl = baseUrl || 'https://open.service.crestal.network/v1';
-      
       const response = await chrome.runtime.sendMessage({ 
         type: 'testConnection',
         testConfig: {
           apiKey: apiKey,
-          baseUrl: finalBaseUrl,
+          baseUrl: baseUrl,
           model: 'gpt-4.1-nano'
         }
       });

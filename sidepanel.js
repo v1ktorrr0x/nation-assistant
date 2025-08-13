@@ -4,48 +4,70 @@
 // ===== COMPLETELY REWORKED AI RESPONSE SYSTEM =====
 
 /**
- * Advanced AI Response Formatter - Robust content processing
+ * Minimal AI Response Formatter - Preserves original LLM structure
+ * Only applies essential markdown formatting while maintaining original content flow
  */
 class AIResponseFormatter {
   constructor() {
+    // Minimal patterns - only essential markdown elements
     this.patterns = {
-      // Headers
+      // Headers - only if explicitly marked with #
       h1: /^# (.+)$/gm,
       h2: /^## (.+)$/gm,
       h3: /^### (.+)$/gm,
       h4: /^#### (.+)$/gm,
-      
-      // Lists
-      bulletList: /^[-*+•] (.+)$/gm,
-      numberedList: /^\d+\. (.+)$/gm,
-      
-      // Text formatting
+      h5: /^##### (.+)$/gm,
+      h6: /^###### (.+)$/gm,
+
+      // Lists - only if explicitly marked
+      bulletList: /^(\s*)[-*+•] (.+)$/gm,
+      numberedList: /^(\s*)\d+\. (.+)$/gm,
+
+      // Basic text formatting
       bold: /\*\*(.*?)\*\*/g,
-      italic: /\*(.*?)\*/g,
-      code: /`([^`]+)`/g,
-      
+      italic: /\*([^*\n]+)\*/g,
+      code: /`([^`\n]+)`/g,
+
+      // Code blocks
+      codeBlock: /```(\w+)?\n?([\s\S]*?)```/g,
+
       // Links
       markdownLink: /\[([^\]]+)\]\(([^)]+)\)/g,
-      autoLink: /(https?:\/\/[^\s<>"]+)/g,
-      
-      // Special
-      hashtag: /#(\w+)/g,
-      blockquote: /^> (.+)$/gm
+      autoLink: /(https?:\/\/[^\s<>"'`]+)/g,
+
+      // Blockquotes
+      blockquote: /^> (.+)$/gm,
+
+      // Horizontal rules
+      horizontalRule: /^---+$/gm
+    };
+
+    // Minimal state tracking
+    this.parsingState = {
+      inCodeBlock: false,
+      listStack: [],
+      currentIndent: 0
     };
   }
 
+  /**
+   * Format content with minimal processing to preserve original structure
+   */
   format(content) {
     if (!content || typeof content !== 'string') {
       return '<div class="ai-error">Invalid response content</div>';
     }
 
     try {
-      // Normalize content
-      const normalized = this.normalizeContent(content);
-      
-      // Process content in stages
-      const processed = this.processContent(normalized);
-      
+      // Reset parsing state
+      this.resetParsingState();
+
+      // Minimal normalization - preserve original line breaks and spacing
+      const normalized = this.minimalNormalize(content);
+
+      // Process with minimal changes to preserve LLM structure
+      const processed = this.processWithMinimalChanges(normalized);
+
       return processed;
     } catch (error) {
       console.error('AI Response formatting error:', error);
@@ -53,144 +75,281 @@ class AIResponseFormatter {
     }
   }
 
-  normalizeContent(content) {
+  resetParsingState() {
+    this.parsingState = {
+      inCodeBlock: false,
+      listStack: [],
+      currentIndent: 0
+    };
+  }
+
+  /**
+   * Minimal normalization - preserve original structure as much as possible
+   */
+  minimalNormalize(content) {
     return content
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
-      .trim();
+      // Don't convert tabs or trim - preserve original spacing
+      ;
   }
 
-  processContent(content) {
-    // Split content into blocks (separated by double newlines)
-    const blocks = content.split(/\n\s*\n/).filter(block => block.trim());
+  /**
+   * Process content with minimal changes to preserve LLM's original structure
+   * Only apply essential formatting while keeping the natural flow
+   */
+  processWithMinimalChanges(content) {
+    // Process line by line but preserve original paragraph structure
+    const lines = content.split('\n');
+    const processedLines = [];
+    let currentParagraph = [];
     
-    const processedBlocks = blocks.map(block => this.processBlock(block.trim()));
-    
-    return processedBlocks.join('\n');
-  }
-
-  processBlock(block) {
-    // Check what type of block this is
-    const blockType = this.identifyBlockType(block);
-    
-    switch (blockType) {
-      case 'header':
-        return this.processHeader(block);
-      case 'list':
-        return this.processList(block);
-      case 'code':
-        return this.processCodeBlock(block);
-      case 'blockquote':
-        return this.processBlockquote(block);
-      default:
-        return this.processParagraph(block);
-    }
-  }
-
-  identifyBlockType(block) {
-    const lines = block.split('\n');
-    const firstLine = lines[0].trim();
-    
-    // Check for headers
-    if (firstLine.match(/^#{1,4} /)) return 'header';
-    
-    // Check for lists (if most lines are list items)
-    const listLines = lines.filter(line => 
-      line.trim().match(/^[-*+•] /) || line.trim().match(/^\d+\. /)
-    );
-    if (listLines.length > lines.length * 0.5) return 'list';
-    
-    // Check for code blocks
-    if (block.includes('```')) return 'code';
-    
-    // Check for blockquotes
-    if (firstLine.startsWith('> ')) return 'blockquote';
-    
-    return 'paragraph';
-  }
-
-  processHeader(block) {
-    return block
-      .replace(this.patterns.h4, '<h4>$1</h4>')
-      .replace(this.patterns.h3, '<h3>$1</h3>')
-      .replace(this.patterns.h2, '<h2>$1</h2>')
-      .replace(this.patterns.h1, '<h1>$1</h1>');
-  }
-
-  processList(block) {
-    const lines = block.split('\n');
-    const listItems = [];
-    let currentListType = null;
-    
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmed = line.trim();
-      if (!trimmed) continue;
       
-      const bulletMatch = trimmed.match(/^[-*+•] (.+)$/);
-      const numberMatch = trimmed.match(/^\d+\. (.+)$/);
-      
-      if (bulletMatch) {
-        if (currentListType !== 'ul') {
-          if (currentListType) listItems.push(`</${currentListType}>`);
-          listItems.push('<ul>');
-          currentListType = 'ul';
+      // Handle code blocks first (preserve exactly as is)
+      if (trimmed.startsWith('```')) {
+        // Finish current paragraph if any
+        if (currentParagraph.length > 0) {
+          processedLines.push(this.processParagraph(currentParagraph.join('\n')));
+          currentParagraph = [];
         }
-        listItems.push(`<li>${this.processInlineFormatting(bulletMatch[1])}</li>`);
-      } else if (numberMatch) {
-        if (currentListType !== 'ol') {
-          if (currentListType) listItems.push(`</${currentListType}>`);
-          listItems.push('<ol>');
-          currentListType = 'ol';
-        }
-        listItems.push(`<li>${this.processInlineFormatting(numberMatch[1])}</li>`);
-      } else {
-        // Regular text in list context
-        if (currentListType) {
-          listItems.push(`</${currentListType}>`);
-          currentListType = null;
-        }
-        listItems.push(`<p>${this.processInlineFormatting(trimmed)}</p>`);
+        
+        const codeBlockResult = this.handleCodeBlock(line, lines, i);
+        processedLines.push(codeBlockResult.html);
+        i += codeBlockResult.skipLines - 1; // -1 because loop will increment
+        continue;
       }
+      
+      // Skip processing if inside code block
+      if (this.parsingState.inCodeBlock) {
+        processedLines.push(this.escapeHtml(line));
+        continue;
+      }
+      
+      // Handle explicit markdown elements
+      if (this.isExplicitMarkdownElement(trimmed)) {
+        // Finish current paragraph if any
+        if (currentParagraph.length > 0) {
+          processedLines.push(this.processParagraph(currentParagraph.join('\n')));
+          currentParagraph = [];
+        }
+        
+        // Process the markdown element
+        processedLines.push(this.processMarkdownElement(line));
+        continue;
+      }
+      
+      // Handle empty lines - preserve paragraph breaks
+      if (!trimmed) {
+        if (currentParagraph.length > 0) {
+          processedLines.push(this.processParagraph(currentParagraph.join('\n')));
+          currentParagraph = [];
+        }
+        processedLines.push(''); // Preserve empty line
+        continue;
+      }
+      
+      // Regular content - accumulate into paragraph
+      currentParagraph.push(line);
     }
     
-    if (currentListType) {
-      listItems.push(`</${currentListType}>`);
+    // Process any remaining paragraph
+    if (currentParagraph.length > 0) {
+      processedLines.push(this.processParagraph(currentParagraph.join('\n')));
     }
     
-    return listItems.join('\n');
+    // Close any open elements
+    const closingTags = this.getClosingTags();
+    if (closingTags) {
+      processedLines.push(closingTags);
+    }
+    
+    return processedLines.join('\n');
   }
 
-  processCodeBlock(block) {
-    return block.replace(/```(\w+)?\n?([\s\S]*?)```/g, (match, language, code) => {
-      const cleanCode = this.escapeHtml(code.trim());
-      return `<pre><code class="language-${language || 'text'}">${cleanCode}</code></pre>`;
-    });
+  /**
+   * Check if a line is an explicit markdown element (starts with markdown syntax)
+   */
+  isExplicitMarkdownElement(line) {
+    return (
+      line.match(/^#{1,6} /) ||           // Headers
+      line.match(/^(\s*)[-*+•] /) ||      // Bullet lists
+      line.match(/^(\s*)\d+\. /) ||       // Numbered lists
+      line.match(/^> /) ||                // Blockquotes
+      line.match(/^---+$/)                // Horizontal rules
+    );
   }
 
-  processBlockquote(block) {
-    return block.replace(this.patterns.blockquote, '<blockquote>$1</blockquote>');
+  /**
+   * Process explicit markdown elements
+   */
+  processMarkdownElement(line) {
+    const trimmed = line.trim();
+    
+    // Headers
+    const headerMatch = trimmed.match(/^(#{1,6}) (.+)$/);
+    if (headerMatch) {
+      const level = headerMatch[1].length;
+      const content = this.processInlineFormatting(headerMatch[2]);
+      return `<h${level}>${content}</h${level}>`;
+    }
+    
+    // Horizontal rules
+    if (this.patterns.horizontalRule.test(trimmed)) {
+      return '<hr>';
+    }
+    
+    // Blockquotes
+    const blockquoteMatch = line.match(/^> (.+)$/);
+    if (blockquoteMatch) {
+      const content = this.processInlineFormatting(blockquoteMatch[1]);
+      return `<blockquote>${content}</blockquote>`;
+    }
+    
+    // Lists
+    const bulletMatch = line.match(/^(\s*)[-*+•] (.+)$/);
+    const numberMatch = line.match(/^(\s*)\d+\. (.+)$/);
+    
+    if (bulletMatch || numberMatch) {
+      return this.processListItem(line, bulletMatch, numberMatch);
+    }
+    
+    // Fallback to paragraph
+    return this.processParagraph(line);
   }
 
-  processParagraph(block) {
-    // Process inline formatting and convert line breaks
-    const formatted = this.processInlineFormatting(block);
+  /**
+   * Process a paragraph with minimal formatting - preserve original line breaks
+   */
+  processParagraph(content) {
+    if (!content.trim()) return '';
+    
+    // Apply only inline formatting, preserve line structure
+    const formatted = this.processInlineFormatting(content);
+    
+    // Convert single line breaks to <br> to preserve original formatting
     const withBreaks = formatted.replace(/\n/g, '<br>');
+    
     return `<p>${withBreaks}</p>`;
   }
 
+  /**
+   * Handle code blocks - preserve exactly as LLM sent them
+   */
+  handleCodeBlock(line, allLines, currentIndex) {
+    const trimmed = line.trim();
+    const match = trimmed.match(/^```(\w+)?/);
+
+    if (!this.parsingState.inCodeBlock) {
+      // Starting a code block
+      this.parsingState.inCodeBlock = true;
+      const language = match[1] || 'text';
+
+      // Find the closing ```
+      let endIndex = currentIndex + 1;
+      let codeContent = [];
+
+      while (endIndex < allLines.length) {
+        const nextLine = allLines[endIndex];
+        if (nextLine.trim() === '```') {
+          break;
+        }
+        // Preserve original spacing and content exactly
+        codeContent.push(this.escapeHtml(nextLine));
+        endIndex++;
+      }
+
+      this.parsingState.inCodeBlock = false;
+
+      const codeHtml = `<pre><code class="language-${language}">${codeContent.join('\n')}</code></pre>`;
+      return { html: codeHtml, skipLines: endIndex - currentIndex + 1 };
+    } else {
+      // Closing a code block
+      this.parsingState.inCodeBlock = false;
+      return { html: '', skipLines: 1 };
+    }
+  }
+
+  /**
+   * Process list items with minimal nesting logic
+   */
+  processListItem(line, bulletMatch, numberMatch) {
+    const isNumbered = !!numberMatch;
+    const match = bulletMatch || numberMatch;
+    const indent = match[1].length;
+    const content = match[2];
+
+    const listType = isNumbered ? 'ol' : 'ul';
+    let html = '';
+
+    // Simple list handling - minimal nesting
+    if (this.parsingState.listStack.length === 0) {
+      // Starting first list
+      html += `<${listType}>`;
+      this.parsingState.listStack.push(listType);
+      this.parsingState.currentIndent = indent;
+    } else if (indent > this.parsingState.currentIndent) {
+      // Starting nested list
+      html += `<${listType}>`;
+      this.parsingState.listStack.push(listType);
+      this.parsingState.currentIndent = indent;
+    } else if (indent < this.parsingState.currentIndent) {
+      // Closing nested lists
+      while (this.parsingState.listStack.length > 0 && indent < this.parsingState.currentIndent) {
+        const closingType = this.parsingState.listStack.pop();
+        html += `</${closingType}>`;
+        this.parsingState.currentIndent = Math.max(0, this.parsingState.currentIndent - 2);
+      }
+      
+      // Start new list if needed
+      if (this.parsingState.listStack.length === 0) {
+        html += `<${listType}>`;
+        this.parsingState.listStack.push(listType);
+        this.parsingState.currentIndent = indent;
+      }
+    }
+
+    // Add list item with minimal processing
+    const processedContent = this.processInlineFormatting(content);
+    html += `<li>${processedContent}</li>`;
+
+    return html;
+  }
+
+  /**
+   * Minimal inline formatting - only process explicit markdown with better word boundary handling
+   */
   processInlineFormatting(text) {
+    if (!text) return '';
+
     return text
-      // Links first (to avoid conflicts)
+      // Process code first to avoid conflicts
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+
+      // Links (only explicit markdown links and URLs)
       .replace(this.patterns.markdownLink, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
       .replace(this.patterns.autoLink, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
-      
-      // Text formatting
-      .replace(this.patterns.bold, '<strong>$1</strong>')
-      .replace(this.patterns.italic, '<em>$1</em>')
-      .replace(this.patterns.code, '<code>$1</code>')
-      
-      // Special elements
-      .replace(this.patterns.hashtag, '<span class="hashtag">#$1</span>');
+
+      // Basic text formatting - improved patterns to avoid breaking within words
+      .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+  }
+
+  /**
+   * Close any open elements
+   */
+  getClosingTags() {
+    let closingTags = '';
+
+    // Close any open lists
+    if (this.parsingState.listStack.length > 0) {
+      closingTags += this.parsingState.listStack.reverse().map(type => `</${type}>`).join('');
+      this.parsingState.listStack = [];
+    }
+
+    return closingTags;
   }
 
   escapeHtml(text) {
@@ -204,7 +363,7 @@ class AIResponseFormatter {
 const aiFormatter = new AIResponseFormatter();
 
 /**
- * Main formatting function - now uses the advanced formatter
+ * Main formatting function - preserves original LLM structure
  */
 function formatAIResponse(content) {
   return aiFormatter.format(content);
@@ -220,6 +379,28 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+/**
+ * Smooth scroll to bottom of chat messages
+ */
+function smoothScrollToBottom() {
+  if (elements.chatMessages) {
+    // Use smooth scrolling for better UX
+    elements.chatMessages.scrollTo({
+      top: elements.chatMessages.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
+}
+
+/**
+ * Instant scroll to bottom (for rapid streaming)
+ */
+function instantScrollToBottom() {
+  if (elements.chatMessages) {
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  }
 }
 
 /**
@@ -247,28 +428,28 @@ function addSystemMessage(content, save = false) {
 function updateInputValidation() {
   const { chatInput } = elements;
   if (!chatInput) return;
-  
+
   const text = chatInput.value;
   const length = text.length;
   const maxLength = 4000;
-  
+
   // Create or update character counter
   let counter = document.getElementById('char-counter');
   if (!counter) {
     counter = document.createElement('div');
     counter.id = 'char-counter';
     counter.className = 'char-counter';
-    
+
     const inputFooter = document.querySelector('.input-footer');
     if (inputFooter) {
       inputFooter.appendChild(counter);
     }
   }
-  
+
   // Update counter display
   const remaining = maxLength - length;
   counter.textContent = `${length}/${maxLength}`;
-  
+
   // Update counter color based on remaining characters
   if (remaining < 0) {
     counter.className = 'char-counter error';
@@ -277,7 +458,7 @@ function updateInputValidation() {
   } else {
     counter.className = 'char-counter';
   }
-  
+
   // Update input container border for visual feedback
   const inputContainer = elements.inputContainer;
   if (inputContainer) {
@@ -307,20 +488,20 @@ function retryLastMessage() {
 function validateStreamingImplementation() {
   const aiMessages = document.querySelectorAll('.message.ai .message-content');
   let bypassedCount = 0;
-  
+
   aiMessages.forEach((messageContent, index) => {
     // Check if message was created without streaming indicators
     const hasStreamingCursor = messageContent.querySelector('.streaming-cursor');
     const hasStreamingIndicator = messageContent.querySelector('.streaming-speed-indicator');
-    
+
     // Check streaming implementation
     if (!hasStreamingCursor && !hasStreamingIndicator && messageContent.innerHTML.length > 50) {
       bypassedCount++;
     }
   });
-  
+
   // Development validation complete
-  
+
   return bypassedCount === 0;
 }
 
@@ -354,45 +535,45 @@ let state = {
 
 async function init() {
   try {
-  setupEventListeners();
-  await loadCurrentTab();
-  await handleContextAction();
+    setupEventListeners();
+    await loadCurrentTab();
+    await handleContextAction();
 
-  // Show welcome message if no context action
-  if (!await hasContextAction()) {
-    showWelcomeMessage();
-  }
+    // Show welcome message if no context action
+    if (!await hasContextAction()) {
+      showWelcomeMessage();
+    }
 
-  enableChatInput();
-  
-  // Focus input and disable send button initially
-  setTimeout(() => elements.chatInput?.focus(), 200);
-  if (elements.sendBtn) elements.sendBtn.disabled = true;
-  
+    enableChatInput();
+
+    // Focus input and disable send button initially
+    setTimeout(() => elements.chatInput?.focus(), 200);
+    if (elements.sendBtn) elements.sendBtn.disabled = true;
+
   } catch (error) {
-  console.error('Initialization error:', error);
-  // Show error in chat if possible
-  const chatMessages = elements.chatMessages;
-  if (chatMessages) {
-    const errorEl = document.createElement('div');
-    errorEl.classList.add('message', 'system');
-    errorEl.innerHTML = '<div class="message-content">❌ Failed to initialize. Please refresh the page.</div>';
-    chatMessages.appendChild(errorEl);
-  }
+    console.error('Initialization error:', error);
+    // Show error in chat if possible
+    const chatMessages = elements.chatMessages;
+    if (chatMessages) {
+      const errorEl = document.createElement('div');
+      errorEl.classList.add('message', 'system');
+      errorEl.innerHTML = '<div class="message-content">❌ Failed to initialize. Please refresh the page.</div>';
+      chatMessages.appendChild(errorEl);
+    }
   }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Initialize DOM Elements
   elements = {
-  chatMessages: document.getElementById('chat-messages'),
-  chatInput: document.getElementById('chat-input'),
-  sendBtn: document.getElementById('send-btn'),
-  tabTitle: document.getElementById('tab-title'),
-  tabUrl: document.getElementById('tab-url'),
-  refreshBtn: document.getElementById('refresh-btn'),
-  settingsBtn: document.getElementById('settings-btn'),
-  inputContainer: document.getElementById('input-container')
+    chatMessages: document.getElementById('chat-messages'),
+    chatInput: document.getElementById('chat-input'),
+    sendBtn: document.getElementById('send-btn'),
+    tabTitle: document.getElementById('tab-title'),
+    tabUrl: document.getElementById('tab-url'),
+    refreshBtn: document.getElementById('refresh-btn'),
+    settingsBtn: document.getElementById('settings-btn'),
+    inputContainer: document.getElementById('input-container')
   };
 
   // Initialize application
@@ -414,7 +595,7 @@ function setupEventListeners() {
 
   // Input container focus
   inputContainer?.addEventListener('click', (e) => {
-  if (e.target !== chatInput) chatInput?.focus();
+    if (e.target !== chatInput) chatInput?.focus();
   });
 }
 
@@ -434,7 +615,7 @@ function handleInputChange() {
     const text = chatInput.value.trim();
     const isValid = text && text.length <= 4000 && !state.isProcessing;
     sendBtn.disabled = !isValid;
-    
+
     // Update button appearance with better feedback
     if (isValid) {
       sendBtn.style.background = 'linear-gradient(135deg, #d0ff16 0%, #a8cc12 100%)';
@@ -516,7 +697,7 @@ async function handleRefresh() {
   } catch (error) {
     addAIMessage("❌ Failed to start new conversation. Please try again.");
   }
-  }
+}
 
 async function handleSendMessage(messageText = null, isRegenerate = false) {
   const { chatInput } = elements;
@@ -547,7 +728,7 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
   try {
     // Update status to show we're analyzing
     setProcessing(true, 'Analyzing page content...');
-    
+
     const response = await chrome.runtime.sendMessage({
       type: 'chatWithPage',
       tabId: state.currentTabId,
@@ -559,7 +740,7 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
     });
 
     hideTypingIndicator();
-    
+
     if (response?.success) {
       addAIMessage(response.data.response);
     } else {
@@ -576,16 +757,16 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
     setProcessing(false);
     chatInput?.focus();
   }
-  }
+}
 
 function showError(message, context = {}) {
   const errorEl = document.createElement('div');
   errorEl.classList.add('message', 'system');
-  
+
   // Provide more specific error guidance
   let errorTitle = 'Something went wrong';
   let actionButtons = '';
-  
+
   if (context.apiKey || message.includes('API key') || message.includes('401')) {
     errorTitle = 'API Configuration Issue';
     actionButtons = `
@@ -617,7 +798,7 @@ function showError(message, context = {}) {
       </button>
     `;
   }
-  
+
   const errorContent = `
     <div class="error-message">
       <div class="error-header">
@@ -632,7 +813,7 @@ function showError(message, context = {}) {
   `;
 
   errorEl.innerHTML = errorContent;
-  
+
   // Add event listeners for error action buttons
   const actionBtns = errorEl.querySelectorAll('.error-action-btn');
   actionBtns.forEach(btn => {
@@ -643,7 +824,7 @@ function showError(message, context = {}) {
   });
 
   elements.chatMessages.appendChild(errorEl);
-  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  smoothScrollToBottom();
 }
 
 function handleErrorAction(action) {
@@ -681,11 +862,6 @@ function addMessage(content, sender, save = true) {
   messageEl.appendChild(messageHeader);
   messageEl.appendChild(messageContent);
 
-  // Add action buttons for AI messages
-  if (sender === 'ai') {
-    messageContent.appendChild(createMessageActions(content));
-  }
-
   chatMessages.appendChild(messageEl);
 
   // Handle content display - universal formatting for all content
@@ -696,15 +872,28 @@ function addMessage(content, sender, save = true) {
     if (state.currentStreamingController) {
       state.currentStreamingController();
     }
-    
+
     // Start new streaming animation for AI responses
-    state.currentStreamingController = startTypingEffect(messageContent, formattedContent);
+    const streamingController = startTypingEffect(messageContent, formattedContent);
+    state.currentStreamingController = streamingController;
+    
+    // Add action buttons after streaming completes - outside content area
+    setTimeout(() => {
+      if (!messageEl.querySelector('.message-actions')) {
+        messageEl.appendChild(createMessageActions(content));
+      }
+    }, 3000); // Wait for streaming to complete
   } else {
     // System and user messages display immediately without streaming
     messageContent.innerHTML = formattedContent;
+    
+    // Add action buttons for AI messages (non-streaming case) - outside content area
+    if (sender === 'ai') {
+      messageEl.appendChild(createMessageActions(content));
+    }
   }
 
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  smoothScrollToBottom();
 
   // Save to history
   if (save) {
@@ -712,7 +901,7 @@ function addMessage(content, sender, save = true) {
   }
 
   return messageEl;
-  }
+}
 
 function createMessageHeader(sender) {
   const header = document.createElement('div');
@@ -732,18 +921,18 @@ function createMessageHeader(sender) {
 
   header.append(avatar, senderName, time);
   return header;
-  }
+}
 
 function createMessageActions(content) {
   const actionsEl = document.createElement('div');
   actionsEl.classList.add('message-actions');
-  
+
   actionsEl.innerHTML = `
     <button class="action-btn" data-action="copy" title="Copy message">
-      <i class="fas fa-copy"></i> Copy
+      <i class="fas fa-copy"></i>
     </button>
     <button class="action-btn" data-action="regenerate" title="Regenerate response">
-      <i class="fas fa-redo"></i> Retry
+      <i class="fas fa-redo"></i>
     </button>
   `;
 
@@ -757,7 +946,7 @@ function createMessageActions(content) {
   });
 
   return actionsEl;
-  }
+}
 
 function handleMessageAction(action, content, button) {
   switch (action) {
@@ -768,37 +957,40 @@ function handleMessageAction(action, content, button) {
       regenerateLastResponse(button);
       break;
   }
-  }
+}
 
 function copyToClipboard(text, button) {
   navigator.clipboard.writeText(text).then(() => {
     // Show success feedback
     button.classList.add('success');
-    button.innerHTML = '<i class="fas fa-check"></i> Copied!';
-    
+    button.innerHTML = '<i class="fas fa-check"></i>';
+    button.title = 'Copied!';
+
     setTimeout(() => {
       button.classList.remove('success');
-      button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+      button.innerHTML = '<i class="fas fa-copy"></i>';
+      button.title = 'Copy message';
     }, 2000);
   }).catch(() => {
     showError('Failed to copy to clipboard');
   });
-  }
+}
 
 function regenerateLastResponse(button) {
   if (state.isProcessing) return;
-  
+
   // Get the last user message
   const lastUserMessage = state.chatHistory.slice().reverse().find(msg => msg.sender === 'user');
   if (!lastUserMessage) return;
 
   // Show loading state on button
-  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrying...';
+  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  button.title = 'Retrying...';
   button.disabled = true;
 
   // Resend the last message
   handleSendMessage(lastUserMessage.content, true);
-  }
+}
 
 // Modern welcome message with actionable suggestions
 function showWelcomeMessage() {
@@ -844,29 +1036,210 @@ function showWelcomeMessage() {
 }
 
 /**
- * Advanced streaming animation for AI responses
+ * Enhanced streaming animation for AI responses - inspired by AI sidebar
+ * Maintains structure during streaming while providing smooth animation
  */
 function startTypingEffect(element, finalContent) {
   // Clear any existing content
   element.innerHTML = '';
-  
+
   // Create a temporary container to parse the HTML
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = finalContent;
-  
-  // Get all text nodes and elements for streaming
+
+  // Get all text nodes and elements for streaming with enhanced structure preservation
   const streamableContent = extractStreamableContent(tempDiv);
-  
-  // Start the streaming animation and return the controller
-  return streamContent(element, streamableContent);
+
+  // Start the enhanced streaming animation and return the controller
+  return streamContentWithStructure(element, streamableContent);
 }
 
 /**
- * Extract content that can be streamed (text nodes and elements)
+ * Enhanced streaming function that preserves markdown structure
+ * Inspired by AI sidebar's approach but adapted for Nation Assistant's style
+ */
+function streamContentWithStructure(element, streamableContent) {
+  let currentIndex = 0;
+  let isStreaming = true;
+  let streamingSpeed = 50; // Base speed in milliseconds
+  let currentElement = element;
+  let elementStack = []; // Track nested elements
+
+  // Create streaming cursor
+  const cursor = document.createElement('span');
+  cursor.className = 'streaming-cursor';
+  cursor.textContent = '▊';
+
+  // Speed control variables
+  let speedMultiplier = 1;
+  let isInstant = false;
+
+  // Add click handlers for speed control (maintaining original functionality)
+  let clickCount = 0;
+  let clickTimer = null;
+
+  const handleClick = () => {
+    clickCount++;
+
+    if (clickTimer) clearTimeout(clickTimer);
+
+    clickTimer = setTimeout(() => {
+      if (clickCount === 1) {
+        // Single click - speed up
+        speedMultiplier = Math.min(speedMultiplier * 2, 8);
+        showSpeedIndicator('Faster');
+      } else if (clickCount >= 2) {
+        // Double click - instant
+        isInstant = true;
+        showSpeedIndicator('Instant');
+      }
+      clickCount = 0;
+    }, 300);
+  };
+
+  element.addEventListener('click', handleClick);
+
+  const showSpeedIndicator = (text) => {
+    const indicator = document.createElement('div');
+    indicator.className = 'streaming-speed-indicator visible';
+    indicator.textContent = text;
+    element.appendChild(indicator);
+
+    setTimeout(() => {
+      indicator.classList.remove('visible');
+      setTimeout(() => indicator.remove(), 300);
+    }, 1500);
+  };
+
+  const streamNext = () => {
+    if (!isStreaming || currentIndex >= streamableContent.length) {
+      // Streaming complete
+      cursor.remove();
+      element.removeEventListener('click', handleClick);
+      // Final scroll to ensure we're at the bottom
+      smoothScrollToBottom();
+      return;
+    }
+
+    const item = streamableContent[currentIndex];
+
+    // Handle instant mode
+    if (isInstant) {
+      // Add all remaining content instantly
+      while (currentIndex < streamableContent.length) {
+        const currentItem = streamableContent[currentIndex];
+        processStreamItem(currentItem);
+        currentIndex++;
+      }
+      cursor.remove();
+      element.removeEventListener('click', handleClick);
+      // Final scroll after instant completion
+      smoothScrollToBottom();
+      return;
+    }
+
+    processStreamItem(item);
+    currentIndex++;
+
+    // Calculate next delay based on content type and speed
+    let delay = calculateDelay(item) / speedMultiplier;
+
+    setTimeout(streamNext, delay);
+  };
+
+  const processStreamItem = (item) => {
+    switch (item.type) {
+      case 'text':
+        // Add text content
+        const textNode = document.createTextNode(item.content);
+        currentElement.appendChild(textNode);
+
+        // Update cursor position
+        cursor.remove();
+        currentElement.appendChild(cursor);
+        break;
+
+      case 'element':
+        // Complete element (headers, code blocks, tables, etc.)
+        cursor.remove();
+        currentElement.appendChild(item.element);
+        currentElement.appendChild(cursor);
+        break;
+
+      case 'element_start':
+        // Start of an element
+        cursor.remove();
+        const newElement = item.element;
+        currentElement.appendChild(newElement);
+
+        // Push current element to stack and switch context
+        elementStack.push(currentElement);
+        currentElement = newElement;
+        currentElement.appendChild(cursor);
+        break;
+
+      case 'element_end':
+        // End of an element
+        cursor.remove();
+
+        // Pop back to parent element
+        if (elementStack.length > 0) {
+          currentElement = elementStack.pop();
+        }
+        currentElement.appendChild(cursor);
+        break;
+    }
+    
+    // Auto-scroll to bottom after each item
+    instantScrollToBottom();
+  };
+
+  const calculateDelay = (item) => {
+    // Enhanced delay calculation based on content type
+    if (item.priority === 'high') {
+      return streamingSpeed * 2; // Slower for important elements
+    }
+
+    if (item.isWhitespace) {
+      return streamingSpeed * 0.3; // Faster for whitespace
+    }
+
+    if (item.isCodeBlock || item.isTable) {
+      return streamingSpeed * 3; // Slower for complex elements
+    }
+
+    if (item.isInlineFormatting || item.isInlineCode) {
+      return streamingSpeed * 0.5; // Faster for inline elements
+    }
+
+    if (item.type === 'element_start' || item.type === 'element_end') {
+      return streamingSpeed * 0.2; // Very fast for structure elements
+    }
+
+    // Default text speed with some variation
+    const baseDelay = streamingSpeed;
+    const variation = Math.random() * 20 - 10; // ±10ms variation
+    return Math.max(baseDelay + variation, 10);
+  };
+
+  // Start streaming
+  streamNext();
+
+  // Return controller function
+  return () => {
+    isStreaming = false;
+    cursor.remove();
+    element.removeEventListener('click', handleClick);
+  };
+}
+
+/**
+ * Enhanced streaming content extraction - inspired by AI sidebar
+ * Extracts content that can be streamed while preserving markdown structure
  */
 function extractStreamableContent(container) {
   const content = [];
-  
+
   function traverse(node) {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent;
@@ -875,8 +1248,8 @@ function extractStreamableContent(container) {
         const parts = text.split(/(\s+)/);
         parts.forEach(part => {
           if (part) {
-            content.push({ 
-              type: 'text', 
+            content.push({
+              type: 'text',
               content: part,
               isWhitespace: /^\s+$/.test(part)
             });
@@ -885,113 +1258,195 @@ function extractStreamableContent(container) {
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const tagName = node.tagName.toLowerCase();
-      
-      // Handle different element types
+
+      // Handle different element types with enhanced structure preservation
       if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
-        // Headers are treated as complete blocks
+        // Headers are treated as complete blocks for better visual impact
         const headerElement = node.cloneNode(true);
-        content.push({ 
-          type: 'element', 
+        content.push({
+          type: 'element',
           element: headerElement,
           content: node.textContent,
-          isBlock: true 
+          isBlock: true,
+          priority: 'high' // Headers get priority in streaming
         });
-      } else if (['p', 'div', 'li', 'blockquote'].includes(tagName)) {
-        content.push({ 
-          type: 'element_start', 
+      } else if (['p', 'div', 'blockquote'].includes(tagName)) {
+        content.push({
+          type: 'element_start',
           element: node.cloneNode(false),
-          isBlock: true 
+          isBlock: true
         });
-        
+
         // Process children
         Array.from(node.childNodes).forEach(child => traverse(child));
-        
-        content.push({ 
-          type: 'element_end', 
+
+        content.push({
+          type: 'element_end',
           tagName: tagName,
-          isBlock: true 
+          isBlock: true
         });
       } else if (['ul', 'ol'].includes(tagName)) {
-        content.push({ 
-          type: 'element_start', 
+        // Lists need special handling to maintain structure
+        content.push({
+          type: 'element_start',
           element: node.cloneNode(false),
-          isBlock: true 
+          isBlock: true,
+          listType: tagName
         });
-        
-        // Process list items
-        Array.from(node.children).forEach(child => traverse(child));
-        
-        content.push({ 
-          type: 'element_end', 
+
+        // Process list items with structure preservation
+        Array.from(node.children).forEach(child => {
+          if (child.tagName.toLowerCase() === 'li') {
+            content.push({
+              type: 'element_start',
+              element: child.cloneNode(false),
+              isBlock: false,
+              isListItem: true
+            });
+
+            Array.from(child.childNodes).forEach(grandChild => traverse(grandChild));
+
+            content.push({
+              type: 'element_end',
+              tagName: 'li',
+              isBlock: false,
+              isListItem: true
+            });
+          }
+        });
+
+        content.push({
+          type: 'element_end',
           tagName: tagName,
-          isBlock: true 
+          isBlock: true,
+          listType: tagName
         });
-      } else if (['pre', 'code'].includes(tagName)) {
-        // Code blocks are treated as complete elements
+      } else if (['li'].includes(tagName)) {
+        // List items handled above in list processing
+        content.push({
+          type: 'element_start',
+          element: node.cloneNode(false),
+          isBlock: false,
+          isListItem: true
+        });
+
+        Array.from(node.childNodes).forEach(child => traverse(child));
+
+        content.push({
+          type: 'element_end',
+          tagName: tagName,
+          isBlock: false,
+          isListItem: true
+        });
+      } else if (['pre'].includes(tagName)) {
+        // Code blocks are treated as complete elements for syntax integrity
         const codeElement = node.cloneNode(true);
-        content.push({ 
-          type: 'element', 
+        content.push({
+          type: 'element',
           element: codeElement,
           content: node.textContent,
-          isBlock: tagName === 'pre' 
+          isBlock: true,
+          isCodeBlock: true,
+          priority: 'high' // Code blocks get priority
         });
-      } else if (['strong', 'em', 'a', 'span'].includes(tagName)) {
-        content.push({ 
-          type: 'element_start', 
+      } else if (['code'].includes(tagName)) {
+        // Inline code - check if it's inside a pre block
+        const isInlineCode = !node.closest('pre');
+        if (isInlineCode) {
+          content.push({
+            type: 'element_start',
+            element: node.cloneNode(false),
+            isBlock: false,
+            isInlineCode: true
+          });
+
+          Array.from(node.childNodes).forEach(child => traverse(child));
+
+          content.push({
+            type: 'element_end',
+            tagName: tagName,
+            isBlock: false,
+            isInlineCode: true
+          });
+        }
+      } else if (['strong', 'em', 'del', 'a', 'span'].includes(tagName)) {
+        // Inline formatting elements
+        content.push({
+          type: 'element_start',
           element: node.cloneNode(false),
-          isBlock: false 
+          isBlock: false,
+          isInlineFormatting: true
         });
-        
+
         Array.from(node.childNodes).forEach(child => traverse(child));
-        
-        content.push({ 
-          type: 'element_end', 
+
+        content.push({
+          type: 'element_end',
           tagName: tagName,
-          isBlock: false 
+          isBlock: false,
+          isInlineFormatting: true
         });
-      } else if (['br'].includes(tagName)) {
-        // Line breaks are treated as single elements
-        content.push({ 
-          type: 'element', 
+      } else if (['br', 'hr'].includes(tagName)) {
+        // Self-closing elements
+        content.push({
+          type: 'element',
           element: node.cloneNode(false),
           content: '',
-          isBlock: false 
+          isBlock: tagName === 'hr',
+          isSelfClosing: true
         });
       } else if (['table', 'thead', 'tbody', 'tr', 'th', 'td'].includes(tagName)) {
-        // Tables are treated as complete blocks for better formatting
+        // Enhanced table handling
         if (tagName === 'table') {
+          // Tables are treated as complete blocks for better formatting
           const tableElement = node.cloneNode(true);
-          content.push({ 
-            type: 'element', 
+          content.push({
+            type: 'element',
             element: tableElement,
             content: node.textContent,
-            isBlock: true 
+            isBlock: true,
+            isTable: true,
+            priority: 'high'
           });
         } else {
-          // For table sub-elements, process normally
-          content.push({ 
-            type: 'element_start', 
+          // For table sub-elements, process with structure preservation
+          content.push({
+            type: 'element_start',
             element: node.cloneNode(false),
-            isBlock: ['thead', 'tbody', 'tr'].includes(tagName)
+            isBlock: ['thead', 'tbody', 'tr'].includes(tagName),
+            isTableElement: true
           });
-          
+
           Array.from(node.childNodes).forEach(child => traverse(child));
-          
-          content.push({ 
-            type: 'element_end', 
+
+          content.push({
+            type: 'element_end',
             tagName: tagName,
-            isBlock: ['thead', 'tbody', 'tr'].includes(tagName)
+            isBlock: ['thead', 'tbody', 'tr'].includes(tagName),
+            isTableElement: true
           });
         }
       } else {
-        // For other elements, just process children
+        // Generic element handling
+        content.push({
+          type: 'element_start',
+          element: node.cloneNode(false),
+          isBlock: false
+        });
+
         Array.from(node.childNodes).forEach(child => traverse(child));
+
+        content.push({
+          type: 'element_end',
+          tagName: tagName,
+          isBlock: false
+        });
       }
     }
   }
-  
-  Array.from(container.childNodes).forEach(child => traverse(child));
-  
+
+  traverse(container);
+
   // Filter out empty content and optimize
   return content.filter(item => {
     if (item.type === 'text') {
@@ -1006,18 +1461,18 @@ function extractStreamableContent(container) {
  */
 function streamContent(element, contentArray) {
   element.innerHTML = '';
-  
+
   let currentIndex = 0;
   let elementStack = [element];
   let isStreaming = true;
   let streamingSpeed = 1; // 1 = normal, 3 = fast, 0 = instant
   let speedIndicator = null;
-  
+
   // Add streaming cursor
   const cursor = document.createElement('span');
   cursor.className = 'streaming-cursor';
   cursor.textContent = '▋';
-  
+
   // Create speed indicator
   function createSpeedIndicator() {
     speedIndicator = document.createElement('div');
@@ -1026,7 +1481,7 @@ function streamContent(element, contentArray) {
     element.style.position = 'relative';
     element.appendChild(speedIndicator);
   }
-  
+
   function getSpeedText() {
     switch (streamingSpeed) {
       case 1: return 'Normal Speed';
@@ -1034,7 +1489,7 @@ function streamContent(element, contentArray) {
       default: return 'Instant';
     }
   }
-  
+
   function updateSpeedIndicator() {
     if (speedIndicator) {
       speedIndicator.textContent = getSpeedText();
@@ -1046,13 +1501,13 @@ function streamContent(element, contentArray) {
       }, 1500);
     }
   }
-  
+
   // Add click handler to speed up streaming
   const clickHandler = (e) => {
     if (isStreaming && !e.target.closest('.message-actions')) {
       e.preventDefault();
       e.stopPropagation();
-      
+
       // Cycle through speeds: Normal -> Fast -> Instant
       if (streamingSpeed === 1) {
         streamingSpeed = 3;
@@ -1063,7 +1518,7 @@ function streamContent(element, contentArray) {
       }
     }
   };
-  
+
   // Add double-click handler for instant completion
   const doubleClickHandler = (e) => {
     if (isStreaming) {
@@ -1072,65 +1527,63 @@ function streamContent(element, contentArray) {
       finishStreaming();
     }
   };
-  
+
   element.addEventListener('click', clickHandler);
   element.addEventListener('dblclick', doubleClickHandler);
-  
+
   // Create speed indicator
   createSpeedIndicator();
-  
+
   function finishStreaming() {
     isStreaming = false;
-    
+
     // Remove cursor and speed indicator
     const existingCursor = element.querySelector('.streaming-cursor');
     if (existingCursor) {
       existingCursor.remove();
     }
-    
+
     if (speedIndicator) {
       speedIndicator.remove();
       speedIndicator = null;
     }
-    
+
     // Show complete content instantly
     element.innerHTML = '';
     const newElementStack = [element];
     contentArray.forEach(item => {
       processStreamItem(item, newElementStack, element);
     });
-    
+
     // Clean up event listeners
     element.removeEventListener('click', clickHandler);
     element.removeEventListener('dblclick', doubleClickHandler);
-    
-    // Scroll to bottom
-    if (elements.chatMessages) {
-      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-    }
+
+    // Final scroll to bottom
+    smoothScrollToBottom();
   }
-  
+
   function processStreamItem(item, stack, rootElement) {
     const currentContainer = stack[stack.length - 1];
-    
+
     switch (item.type) {
       case 'text':
         const textNode = document.createTextNode(item.content);
         currentContainer.appendChild(textNode);
         break;
-        
+
       case 'element':
         const completeElement = item.element.cloneNode(false);
         completeElement.textContent = item.content;
         currentContainer.appendChild(completeElement);
         break;
-        
+
       case 'element_start':
         const startElement = item.element.cloneNode(false);
         currentContainer.appendChild(startElement);
         stack.push(startElement);
         break;
-        
+
       case 'element_end':
         if (stack.length > 1) {
           stack.pop();
@@ -1138,38 +1591,36 @@ function streamContent(element, contentArray) {
         break;
     }
   }
-  
+
   function streamNext() {
     if (!isStreaming || currentIndex >= contentArray.length) {
       finishStreaming();
       return;
     }
-    
+
     const item = contentArray[currentIndex];
-    
+
     // Remove existing cursor
     const existingCursor = element.querySelector('.streaming-cursor');
     if (existingCursor) {
       existingCursor.remove();
     }
-    
+
     // Process the current item
     processStreamItem(item, elementStack, element);
-    
+
     // Add cursor at the end of current container
     const currentContainer = elementStack[elementStack.length - 1];
     currentContainer.appendChild(cursor);
-    
-    // Scroll to bottom smoothly
-    if (elements.chatMessages) {
-      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-    }
-    
+
+    // Auto-scroll to bottom during streaming
+    instantScrollToBottom();
+
     currentIndex++;
-    
+
     // Calculate delay based on content type and streaming speed
     let baseDelay = 50;
-    
+
     if (item.type === 'text') {
       // Adjust delay based on word length and content
       const wordLength = item.content.trim().length;
@@ -1187,16 +1638,16 @@ function streamContent(element, contentArray) {
     } else if (item.type === 'element_start' || item.type === 'element_end') {
       baseDelay = 20; // Quick for structural elements
     }
-    
+
     // Apply speed multiplier
     const delay = Math.max(5, Math.round(baseDelay / streamingSpeed));
-    
+
     setTimeout(streamNext, delay);
   }
-  
+
   // Start streaming after a brief delay
   setTimeout(streamNext, 100);
-  
+
   // Return a function to stop streaming
   return () => {
     finishStreaming();
@@ -1206,57 +1657,53 @@ function streamContent(element, contentArray) {
 function typeFormattedContent(element, content) {
   const chunks = getTypingChunks(content);
   let currentChunk = 0;
-  
+
   element.innerHTML = '';
-  
+
   function typeNextChunk() {
     if (currentChunk < chunks.length) {
       element.innerHTML += chunks[currentChunk];
       currentChunk++;
-      
-      // Scroll to bottom
-      if (elements.chatMessages) {
-        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-      }
-      
+
+      // Auto-scroll to bottom
+      instantScrollToBottom();
+
       setTimeout(typeNextChunk, 50); // Faster for chunks
     }
   }
-  
+
   typeNextChunk();
-  }
+}
 
 function typeSimpleContent(element, content) {
   let currentIndex = 0;
   const typingSpeed = 20;
-  
+
   element.innerHTML = '';
-  
+
   function typeNextChar() {
     if (currentIndex < content.length) {
       element.innerHTML = content.substring(0, currentIndex + 1);
       currentIndex++;
-      
-      if (elements.chatMessages) {
-        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-      }
-      
+
+      instantScrollToBottom();
+
       setTimeout(typeNextChar, typingSpeed);
     }
   }
-  
+
   typeNextChar();
-  }
+}
 
 function getTypingChunks(html) {
   const chunks = [];
   let currentChunk = '';
   let inTag = false;
   let tagDepth = 0;
-  
+
   for (let i = 0; i < html.length; i++) {
     const char = html[i];
-    
+
     if (char === '<') {
       inTag = true;
       tagDepth++;
@@ -1264,22 +1711,22 @@ function getTypingChunks(html) {
       inTag = false;
       tagDepth--;
     }
-    
+
     currentChunk += char;
-    
+
     // Create chunk when we complete a tag or reach text content
     if (!inTag && tagDepth === 0 && (char === '>' || currentChunk.length >= 10)) {
       chunks.push(currentChunk);
       currentChunk = '';
     }
   }
-  
+
   if (currentChunk) {
     chunks.push(currentChunk);
   }
-  
+
   return chunks.filter(chunk => chunk.trim());
-  }
+}
 
 function showTypingIndicator() {
   const { chatMessages } = elements;
@@ -1294,16 +1741,16 @@ function showTypingIndicator() {
     <div class="typing-dot"></div>
     <div class="typing-status">Thinking...</div>
   `;
-  
+
   chatMessages.appendChild(typingEl);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
+  smoothScrollToBottom();
+}
 
 function hideTypingIndicator() {
   document.getElementById('typing-indicator')?.remove();
-  }
+}
 
-  // Error handling utilities
+// Error handling utilities
 function detectErrorType(message) {
   if (message.includes('API key') || message.includes('401') || message.includes('403')) {
     return 'apiKey';
@@ -1312,7 +1759,7 @@ function detectErrorType(message) {
     return 'network';
   }
   return 'generic';
-  }
+}
 
 function setProcessing(processing, statusText = 'Thinking...') {
   const { sendBtn, chatInput, inputContainer } = elements;
@@ -1340,7 +1787,7 @@ function setProcessing(processing, statusText = 'Thinking...') {
   // Update input placeholder
   if (chatInput) {
     chatInput.disabled = processing;
-    chatInput.placeholder = processing 
+    chatInput.placeholder = processing
       ? `Nation Assistant is ${statusText.toLowerCase()}...`
       : 'Message Nation Assistant...';
   }
@@ -1350,18 +1797,18 @@ function setProcessing(processing, statusText = 'Thinking...') {
   if (typingStatus && processing) {
     typingStatus.textContent = statusText;
   }
-  }
+}
 
 async function loadCurrentTab() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) {
       state.currentTabId = tab.id;
-      
+
       const { tabTitle, tabUrl } = elements;
       if (tabTitle) tabTitle.textContent = tab.title || 'Current Page';
       if (tabUrl) tabUrl.textContent = tab.url ? new URL(tab.url).hostname : '';
-      
+
       // Test connection status
       updateConnectionStatus();
     }
@@ -1374,16 +1821,16 @@ async function loadCurrentTab() {
 async function updateConnectionStatus(forceStatus = null) {
   const statusElement = document.querySelector('.connection-status');
   if (!statusElement) return;
-  
+
   const statusDot = statusElement.querySelector('.status-dot');
   const statusText = statusElement.querySelector('.status-text');
-  
+
   if (forceStatus === false) {
     statusDot.style.background = '#ff6b6b';
     statusText.textContent = 'Disconnected';
     return;
   }
-  
+
   try {
     // Quick connection test
     await chrome.runtime.sendMessage({ type: 'testConnection' });
@@ -1397,10 +1844,10 @@ async function updateConnectionStatus(forceStatus = null) {
 
 
 
-  // Enable chat input
+// Enable chat input
 function enableChatInput() {
   const { chatInput, sendBtn } = elements;
-  
+
   if (chatInput) {
     chatInput.disabled = false;
     chatInput.removeAttribute('disabled');
@@ -1427,9 +1874,9 @@ async function handleContextAction() {
   try {
     const result = await chrome.storage.local.get(['contextAction']);
     const contextAction = result.contextAction;
-    
+
     if (!contextAction) return;
-    
+
     // Handle different context actions
     switch (contextAction.action) {
       case 'translate':
@@ -1450,7 +1897,7 @@ async function handleContextAction() {
           addAIMessage("I can help you understand, translate, or analyze this text. What would you like to know?");
         }
     }
-    
+
     // Don't clear context action here for translations - let the message handlers do it
     if (contextAction.action !== 'translate') {
       chrome.storage.local.remove(['contextAction']);
@@ -1462,15 +1909,15 @@ async function handleContextAction() {
 
 function handleTranslateAction(contextAction) {
   const { originalText, targetLanguage, smart } = contextAction;
-  
+
   // Show enhanced loading message with full context
   const loadingEl = document.createElement('div');
   loadingEl.id = 'translation-loading';
   loadingEl.classList.add('message', 'system');
-  
-  const displayText = originalText.length > 100 ? 
+
+  const displayText = originalText.length > 100 ?
     originalText.substring(0, 100) + '...' : originalText;
-  
+
   loadingEl.innerHTML = `
     <div class="message-content">
       <div class="translation-context">
@@ -1488,7 +1935,7 @@ function handleTranslateAction(contextAction) {
     </div>
   `;
   elements.chatMessages.appendChild(loadingEl);
-  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  smoothScrollToBottom();
 }
 
 function handleSummarizeAction(contextAction) {
@@ -1503,7 +1950,7 @@ function handleExplainAction(contextAction) {
   handleSendMessage(`Please explain this text: "${text}"`, false);
 }
 
-  // Check if there's a context action
+// Check if there's a context action
 async function hasContextAction() {
   try {
     const result = await chrome.storage.local.get(['contextAction']);
@@ -1523,10 +1970,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (loadingMsg) {
       loadingMsg.remove();
     }
-    
+
     // Create enhanced translation result display
     showTranslationResult(message);
-    
+
     // Clear the context action
     chrome.storage.local.remove(['contextAction']);
   } else if (message.type === 'TRANSLATION_ERROR') {
@@ -1535,10 +1982,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (loadingMsg) {
       loadingMsg.remove();
     }
-    
+
     // Show error with AI streaming for consistency
     addAIMessage(`❌ Translation failed: ${message.error}`);
-    
+
     // Clear the context action
     chrome.storage.local.remove(['contextAction']);
   }
@@ -1546,15 +1993,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 function showTranslationResult(translationData) {
   const { translation, targetLanguage, detectedLanguage, smart } = translationData;
-  
+
   // Create enhanced translation display using the standard addMessage with streaming
   const messageEl = document.createElement('div');
   messageEl.classList.add('message', 'ai');
-  
+
   const messageHeader = createMessageHeader('ai');
   const messageContent = document.createElement('div');
   messageContent.classList.add('message-content');
-  
+
   // Build the translation HTML content
   let translationHTML = `
     <div class="translation-result">
@@ -1584,23 +2031,23 @@ function showTranslationResult(translationData) {
       </div>
     </div>
   `;
-  
+
   messageEl.appendChild(messageHeader);
   messageEl.appendChild(messageContent);
-  
-  // Add action buttons for AI messages (standard pattern)
-  messageContent.appendChild(createMessageActions(translation));
-  
+
+  // Add action buttons for AI messages (standard pattern) - outside content area
+  messageEl.appendChild(createMessageActions(translation));
+
   elements.chatMessages.appendChild(messageEl);
 
   // Stop any existing streaming
   if (state.currentStreamingController) {
     state.currentStreamingController();
   }
-  
+
   // Start streaming animation for the translation result
   state.currentStreamingController = startTypingEffect(messageContent, translationHTML);
-  
+
   // Add event listeners for translation-specific action buttons after streaming completes
   setTimeout(() => {
     const translationActions = messageContent.querySelector('.translation-actions');
@@ -1608,7 +2055,7 @@ function showTranslationResult(translationData) {
       translationActions.addEventListener('click', (e) => {
         const button = e.target.closest('.action-btn');
         if (!button) return;
-        
+
         if (button.classList.contains('copy-translation')) {
           copyTranslation(button.dataset.text, button);
         } else if (button.classList.contains('explain-translation')) {
@@ -1619,9 +2066,9 @@ function showTranslationResult(translationData) {
       });
     }
   }, 1000); // Wait for streaming to complete
-  
-  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-  
+
+  smoothScrollToBottom();
+
   // Add follow-up suggestion with streaming animation
   setTimeout(() => {
     addAIMessage("💡 You can ask me to explain the translation, provide alternatives, or continue our conversation!");
@@ -1634,7 +2081,7 @@ function copyTranslation(text, button) {
     const originalHTML = button.innerHTML;
     button.innerHTML = '<i class="fas fa-check"></i> Copied!';
     button.classList.add('success');
-    
+
     setTimeout(() => {
       button.innerHTML = originalHTML;
       button.classList.remove('success');
@@ -1644,7 +2091,7 @@ function copyTranslation(text, button) {
     const originalHTML = button.innerHTML;
     button.innerHTML = '<i class="fas fa-times"></i> Failed';
     button.classList.add('error');
-    
+
     setTimeout(() => {
       button.innerHTML = originalHTML;
       button.classList.remove('error');

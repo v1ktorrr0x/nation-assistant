@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nation Assistant - Line Breaking Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/nation-theme.css">
+    <link rel="stylesheet" href="styles/sidepanel.css">
+    <style>
+        /* Force narrow width to test line breaking */
+        .chat-container {
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        .message.ai .message-content {
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="modern-chat-app">
+        <header class="nation-header">
+            <div class="header-content">
+                <div class="brand-section">
+                    <div class="logo-container">
+                        <img src="title.png" alt="Nation Assistant" class="nation-logo">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <!-- Test messages will be inserted here -->
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Test content that could cause line breaking issues
+        const testResponses = [
+            // The problematic response from the screenshot
+            `The webpage provides the implementation of an **LLMService** class that manages interactions with an AI language model via an API.
+
+### Main points:
+- **Initialization & Configuration:** The class loads API keys, model settings, and base URL from storage or custom configs, allowing flexible setup.
+- **Making Requests:** It sends chat prompts to the API endpoint (\`/chat/completions\`) with parameters like model, max tokens, and temperature, and handles errors and response validation.
+- **Response Formatting:** It parses JSON responses, extracting and formatting content such as page overviews, key features, target audiences, and calls to action into human-readable summaries.
+- **Webpage Content Interaction:** It provides a method to chat about webpage content by sending the content and user queries, enabling concise summaries or insights.
+- **Translation Function:** It includes a method for language detection and translation, returning structured JSON with detected language, target language, and translation.
+
+### Overall:
+This class facilitates AI-powered content summarization, question answering, and translation within a browser extension, enhancing user interaction with web content.`,
+
+            // More test cases with potential breaking issues
+            `This is a test of **VeryLongClassNameThatMightBreakAcrossLines** and other formatting elements like \`someVeryLongFunctionNameThatCouldCauseIssues()\` in narrow containers.
+
+**Key technical terms:**
+- **APIResponseHandler** - manages API responses
+- **ConfigurationManager** - handles configuration
+- **DataTransformationUtility** - transforms data formats
+- **AuthenticationServiceProvider** - provides authentication
+
+The \`processLongMethodNamesWithParameters()\` function should not break awkwardly.`,
+
+            // Test with mixed formatting
+            `The **SuperLongTechnicalTermThatShouldNotBreakInTheMiddle** is important for understanding how the system works with *italicized technical terms like DatabaseConnectionPoolManager* and inline code like \`verylongfunctionname()\`.`
+        ];
+
+        // Load the sidepanel.js script
+        const script = document.createElement('script');
+        script.src = 'sidepanel.js';
+        script.onload = () => {
+            // Initialize test
+            const chatMessages = document.getElementById('chat-messages');
+            
+            testResponses.forEach((response, index) => {
+                setTimeout(() => {
+                    // Create message element
+                    const messageEl = document.createElement('div');
+                    messageEl.classList.add('message', 'ai');
+                    
+                    const messageHeader = document.createElement('div');
+                    messageHeader.classList.add('message-header');
+                    messageHeader.innerHTML = `
+                        <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                        <span class="message-sender">Nation Assistant</span>
+                        <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    `;
+                    
+                    const messageContent = document.createElement('div');
+                    messageContent.classList.add('message-content');
+                    
+                    messageEl.appendChild(messageHeader);
+                    messageEl.appendChild(messageContent);
+                    chatMessages.appendChild(messageEl);
+                    
+                    // Format and display content using the formatter
+                    if (typeof aiFormatter !== 'undefined') {
+                        const formattedContent = aiFormatter.format(response);
+                        messageContent.innerHTML = formattedContent;
+                    } else {
+                        messageContent.innerHTML = '<p>Formatter not loaded</p>';
+                    }
+                    
+                    // Scroll to bottom
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, index * 3000);
+            });
+        };
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>

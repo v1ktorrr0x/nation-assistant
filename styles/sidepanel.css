@@ -362,13 +362,19 @@ body::before {
   box-shadow: 0 2px 8px rgba(208, 255, 22, 0.2);
 }
 
-/* AI Messages - Simple and readable */
+/* AI Messages - Simple and readable with better text wrapping */
 .message.ai .message-content {
   background: rgba(0, 0, 0, 0.8);
   color: #ffffff;
   max-width: 90%;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  /* Improve text wrapping behavior */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  /* But prevent breaking within formatted elements */
+  word-break: normal;
 }
 
 /* Remove all complex AI content styling - using simple .ai-text class instead */
@@ -385,6 +391,56 @@ body::before {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* ===== AUTOMATIC STRUCTURE DETECTION ===== */
+
+/* Auto-format content that looks like headers (bold text at start of paragraph) */
+.message.ai .message-content p>strong:first-child:only-child,
+.message.ai .message-content p>b:first-child:only-child {
+  display: block;
+  font-size: 16px;
+  color: #D0FF16;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(208, 255, 22, 0.2);
+  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
+}
+
+/* Auto-format content that starts with "**" patterns (section headers) */
+.message.ai .message-content p:has(> strong:first-child) {
+  margin-top: 20px;
+  margin-bottom: 12px;
+}
+
+/* Auto-format bullet-like content (paragraphs starting with - or •) */
+.message.ai .message-content p:has(> :first-child):where(:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6)) {
+  position: relative;
+}
+
+/* Style paragraphs that contain colons (likely key-value pairs) */
+.message.ai .message-content p:has(strong):has(:contains(":")) strong {
+  color: #D0FF16;
+  font-weight: 600;
+}
+
+/* Auto-detect and style method/function names */
+.message.ai .message-content p:has(code:contains("()")) code {
+  background: rgba(208, 255, 22, 0.2);
+  color: #D0FF16;
+  font-weight: 600;
+}
+
+/* Auto-detect parenthetical information and make it secondary */
+.message.ai .message-content p:has(:contains("(")) {
+  position: relative;
+}
+
+/* Style content in parentheses as secondary */
+.message.ai .message-content em:contains("("),
+.message.ai .message-content span:contains("(") {
+  color: #888888;
+  font-size: 13px;
+}
+
 /* Reset and base styles */
 .message.ai .message-content * {
   box-sizing: border-box;
@@ -397,6 +453,15 @@ body::before {
   line-height: 1.6;
   margin: 16px 0;
   font-size: 14px;
+}
+
+/* Secondary paragraphs and explanatory text */
+.message.ai .message-content p.secondary,
+.message.ai .message-content .explanation,
+.message.ai .message-content .note {
+  color: #888888;
+  font-size: 13px;
+  font-style: italic;
 }
 
 .message.ai .message-content p:first-child {
@@ -465,11 +530,16 @@ body::before {
   margin-top: 0;
 }
 
-/* Text formatting */
+/* Enhanced text formatting - inspired by AI sidebar with better line break handling */
 .message.ai .message-content strong,
 .message.ai .message-content b {
   color: #D0FF16;
   font-weight: 600;
+  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
+  /* Prevent awkward line breaks within bold text */
+  display: inline-block;
+  word-break: keep-all;
+  hyphens: none;
 }
 
 .message.ai .message-content em,
@@ -477,13 +547,33 @@ body::before {
   color: rgba(208, 255, 22, 0.9);
   font-style: italic;
   font-weight: 500;
+  /* Prevent awkward line breaks within italic text */
+  display: inline-block;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+/* Subtle emphasis for less important italic text */
+.message.ai .message-content em.subtle,
+.message.ai .message-content i.subtle {
+  color: #888888;
+  font-weight: 400;
 }
 
 .message.ai .message-content del,
 .message.ai .message-content s {
-  color: rgba(255, 255, 255, 0.6);
+  color: #888888;
   text-decoration: line-through;
-  text-decoration-color: rgba(208, 255, 22, 0.5);
+  text-decoration-color: rgba(136, 136, 136, 0.7);
+  text-decoration-thickness: 2px;
+}
+
+/* Enhanced strikethrough with animation */
+.message.ai .message-content del {
+  position: relative;
+  background: linear-gradient(to right, transparent 0%, rgba(208, 255, 22, 0.1) 50%, transparent 100%);
+  padding: 2px 4px;
+  border-radius: 3px;
 }
 
 /* Special elements */
@@ -507,21 +597,63 @@ body::before {
   font-size: 13px;
 }
 
-/* Streaming animation */
+/* Enhanced streaming animation */
 .streaming-cursor {
   color: #D0FF16;
   font-weight: bold;
-  animation: streamingBlink 1s infinite;
-  margin-left: 1px;
+  animation: streamingBlink 1.2s infinite;
+  margin-left: 2px;
   display: inline-block;
+  font-size: 14px;
+  text-shadow: 0 0 4px rgba(208, 255, 22, 0.4);
+  position: relative;
 }
 
 @keyframes streamingBlink {
-  0%, 50% {
+
+  0%,
+  45% {
     opacity: 1;
+    transform: scaleY(1);
   }
-  51%, 100% {
-    opacity: 0.3;
+
+  50%,
+  95% {
+    opacity: 0.2;
+    transform: scaleY(0.8);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+/* Enhanced streaming cursor with glow effect */
+.streaming-cursor::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(208, 255, 22, 0.2);
+  border-radius: 2px;
+  animation: cursorGlow 2s infinite;
+  z-index: -1;
+}
+
+@keyframes cursorGlow {
+
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
   }
 }
 
@@ -572,6 +704,7 @@ body::before {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -600,35 +733,6 @@ body::before {
   opacity: 1;
 }
 
-/* Enhanced streaming cursor with better visibility */
-.streaming-cursor {
-  color: #D0FF16;
-  font-weight: bold;
-  animation: streamingBlink 1.2s infinite;
-  margin-left: 2px;
-  display: inline-block;
-  font-size: 14px;
-  text-shadow: 0 0 4px rgba(208, 255, 22, 0.4);
-}
-
-@keyframes streamingBlink {
-  0%, 45% {
-    opacity: 1;
-    transform: scaleY(1);
-  }
-  50%, 95% {
-    opacity: 0.2;
-    transform: scaleY(0.8);
-  }
-  100% {
-    opacity: 1;
-    transform: scaleY(1);
-  }
-}
-    transform: translateY(0);
-  }
-}
-
 /* Enhanced message appearance */
 .message.ai {
   animation: messageSlideIn 0.4s ease-out;
@@ -639,13 +743,14 @@ body::before {
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
-/* Code styling */
+/* Enhanced Code styling - inspired by AI sidebar with better line break handling */
 .message.ai .message-content code {
   background: rgba(208, 255, 22, 0.15);
   color: #D0FF16;
@@ -655,6 +760,11 @@ body::before {
   font-size: 13px;
   border: 1px solid rgba(208, 255, 22, 0.3);
   font-weight: 500;
+  /* Prevent line breaks within inline code */
+  white-space: nowrap;
+  display: inline-block;
+  word-break: keep-all;
+  hyphens: none;
 }
 
 .message.ai .message-content pre {
@@ -668,6 +778,7 @@ body::before {
   font-size: 13px;
   color: #D0FF16;
   line-height: 1.5;
+  position: relative;
 }
 
 .message.ai .message-content pre code {
@@ -676,6 +787,35 @@ body::before {
   border: none;
   font-size: inherit;
   color: inherit;
+  white-space: pre-wrap;
+}
+
+/* Code comments */
+.message.ai .message-content code .comment,
+.message.ai .message-content pre .comment {
+  color: #888888;
+  font-style: italic;
+}
+
+/* Inline code with secondary importance */
+.message.ai .message-content code.secondary {
+  background: rgba(136, 136, 136, 0.15);
+  color: #888888;
+  border-color: rgba(136, 136, 136, 0.3);
+}
+
+/* Language indicator for code blocks */
+.message.ai .message-content pre[class*="language-"]::before {
+  content: attr(class);
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 10px;
+  color: #888888;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
 }
 
 /* Code block scrollbar */
@@ -712,6 +852,22 @@ body::before {
   color: #ffffff;
   position: relative;
   display: block;
+}
+
+/* Secondary list items */
+.message.ai .message-content li.secondary,
+.message.ai .message-content li[data-type="meta"] {
+  color: #888888;
+  font-size: 13px;
+}
+
+/* List item descriptions and sub-content */
+.message.ai .message-content li .description,
+.message.ai .message-content li .sub-content {
+  color: #888888;
+  font-size: 13px;
+  margin-top: 4px;
+  font-style: italic;
 }
 
 /* Bullet points for unordered lists */
@@ -764,56 +920,136 @@ body::before {
   margin-bottom: 0;
 }
 
-/* Universal nested lists */
+/* Enhanced nested lists with better structure */
 .message.ai .message-content ul ul,
 .message.ai .message-content ol ol,
 .message.ai .message-content ul ol,
 .message.ai .message-content ol ul {
-  margin: 6px 0 !important;
-  padding-left: 20px !important;
+  margin: 8px 0;
+  padding-left: 24px;
+  border-left: 1px solid rgba(208, 255, 22, 0.1);
+  margin-left: 8px;
 }
 
-/* Universal blockquotes */
+/* Different bullet styles for nested lists */
+.message.ai .message-content ul ul li::before {
+  content: '◦';
+  color: rgba(208, 255, 22, 0.8);
+}
+
+.message.ai .message-content ul ul ul li::before {
+  content: '▪';
+  color: rgba(208, 255, 22, 0.6);
+}
+
+/* Enhanced numbered list styling */
+.message.ai .message-content ol li::before {
+  background: rgba(208, 255, 22, 0.1);
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  border: 1px solid rgba(208, 255, 22, 0.3);
+}
+
+/* Enhanced blockquotes - inspired by AI sidebar */
 .message.ai .message-content blockquote {
-  margin: 12px 0 !important;
-  padding: 12px 16px !important;
-  background: rgba(208, 255, 22, 0.08) !important;
-  border-left: 4px solid rgba(208, 255, 22, 0.4) !important;
-  border-radius: 0 8px 8px 0 !important;
-  font-style: italic !important;
-  color: rgba(208, 255, 22, 0.9) !important;
+  margin: 16px 0;
+  padding: 16px 20px;
+  background: rgba(208, 255, 22, 0.08);
+  border-left: 4px solid rgba(208, 255, 22, 0.4);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: rgba(208, 255, 22, 0.9);
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Universal tables - clean and simple */
+.message.ai .message-content blockquote::before {
+  content: '"';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 24px;
+  color: rgba(208, 255, 22, 0.4);
+  font-family: serif;
+  line-height: 1;
+}
+
+.message.ai .message-content blockquote::after {
+  content: '"';
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 24px;
+  color: rgba(208, 255, 22, 0.4);
+  font-family: serif;
+  line-height: 1;
+}
+
+/* Nested blockquotes */
+.message.ai .message-content blockquote blockquote {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-left: 2px solid rgba(208, 255, 22, 0.3);
+  background: rgba(208, 255, 22, 0.05);
+}
+
+/* Enhanced tables - inspired by AI sidebar with Nation styling */
 .message.ai .message-content table {
-  border-collapse: collapse !important;
-  width: 100% !important;
-  margin: 16px 0 !important;
-  border: 1px solid rgba(208, 255, 22, 0.3) !important;
-  border-radius: 8px !important;
-  overflow: hidden !important;
-  display: table !important;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  border: 1px solid rgba(208, 255, 22, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .message.ai .message-content th,
 .message.ai .message-content td {
-  padding: 10px 12px !important;
-  border: 1px solid rgba(208, 255, 22, 0.2) !important;
-  color: #ffffff !important;
-  text-align: left !important;
-  vertical-align: top !important;
+  padding: 12px 16px;
+  border: 1px solid rgba(208, 255, 22, 0.2);
+  color: #ffffff;
+  text-align: left;
+  vertical-align: top;
+  position: relative;
 }
 
 .message.ai .message-content th {
-  background: rgba(208, 255, 22, 0.15) !important;
-  color: #D0FF16 !important;
-  font-weight: 600 !important;
-  font-size: 13px !important;
+  background: rgba(208, 255, 22, 0.15);
+  color: #D0FF16;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid rgba(208, 255, 22, 0.4);
 }
 
 .message.ai .message-content td {
-  font-size: 14px !important;
-  line-height: 1.4 !important;
+  font-size: 14px;
+  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Secondary table cells with grey text */
+.message.ai .message-content td.secondary,
+.message.ai .message-content td[data-type="meta"] {
+  color: #888888;
+  font-size: 13px;
+}
+
+.message.ai .message-content tr:nth-child(even) td {
+  background: rgba(208, 255, 22, 0.05);
+}
+
+.message.ai .message-content tr:hover td {
+  background: rgba(208, 255, 22, 0.1);
+  transition: background-color 0.2s ease;
 }
 
 /* Table scrolling wrapper */
@@ -839,12 +1075,32 @@ body::before {
   }
 }
 
-/* Universal horizontal rules */
+/* Enhanced horizontal rules */
 .message.ai .message-content hr {
-  border: none !important;
-  height: 1px !important;
-  background: rgba(208, 255, 22, 0.3) !important;
-  margin: 20px 0 !important;
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(208, 255, 22, 0.3) 20%,
+      rgba(208, 255, 22, 0.6) 50%,
+      rgba(208, 255, 22, 0.3) 80%,
+      transparent 100%);
+  margin: 24px 0;
+  border-radius: 1px;
+  position: relative;
+}
+
+.message.ai .message-content hr::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 4px;
+  background: #D0FF16;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(208, 255, 22, 0.5);
 }
 
 /* Numbered sections styling */
@@ -1027,6 +1283,13 @@ body::before {
   line-height: 1.5;
 }
 
+/* Secondary bullet values */
+.bullet-value.secondary,
+.bullet-value[data-type="meta"] {
+  color: #888888;
+  font-size: 13px;
+}
+
 .quoted-content {
   margin: 12px 0;
   padding: 12px 16px;
@@ -1064,6 +1327,14 @@ body::before {
   line-height: 1.6;
 }
 
+/* Secondary section paragraphs */
+.section-paragraph.secondary,
+.section-paragraph[data-type="meta"] {
+  color: #888888;
+  font-size: 13px;
+  font-style: italic;
+}
+
 /* Links */
 .message.ai .message-content a {
   color: rgba(208, 255, 22, 0.9);
@@ -1079,6 +1350,19 @@ body::before {
   color: #D0FF16;
   text-decoration-color: rgba(208, 255, 22, 0.8);
   text-decoration-thickness: 2px;
+}
+
+/* Secondary/metadata links */
+.message.ai .message-content a.secondary,
+.message.ai .message-content a[data-type="meta"] {
+  color: #888888;
+  text-decoration-color: rgba(136, 136, 136, 0.5);
+}
+
+.message.ai .message-content a.secondary:hover,
+.message.ai .message-content a[data-type="meta"]:hover {
+  color: #aaaaaa;
+  text-decoration-color: rgba(170, 170, 170, 0.8);
 }
 
 /* Blockquotes */
@@ -1100,6 +1384,72 @@ body::before {
   margin: 24px 0;
 }
 
+/* ===== DARK GREY SEMANTIC ELEMENTS ===== */
+
+/* Captions, footnotes, and metadata */
+.message.ai .message-content .caption,
+.message.ai .message-content .footnote,
+.message.ai .message-content .metadata,
+.message.ai .message-content .timestamp,
+.message.ai .message-content .source,
+.message.ai .message-content .reference {
+  color: #888888;
+  font-size: 12px;
+  font-style: italic;
+  margin: 8px 0;
+  opacity: 0.9;
+}
+
+/* Small text and fine print */
+.message.ai .message-content small,
+.message.ai .message-content .small-text {
+  color: #888888;
+  font-size: 12px;
+}
+
+/* Subdued text for less important information */
+.message.ai .message-content .subdued,
+.message.ai .message-content .muted {
+  color: #888888;
+  opacity: 0.8;
+}
+
+/* Status indicators and badges */
+.message.ai .message-content .status,
+.message.ai .message-content .badge.secondary {
+  background: rgba(136, 136, 136, 0.2);
+  color: #888888;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Comments and asides */
+.message.ai .message-content .comment,
+.message.ai .message-content .aside {
+  color: #888888;
+  font-size: 13px;
+  font-style: italic;
+  border-left: 2px solid rgba(136, 136, 136, 0.3);
+  padding-left: 12px;
+  margin: 12px 0;
+}
+
+/* Version numbers, dates, and technical metadata */
+.message.ai .message-content .version,
+.message.ai .message-content .date,
+.message.ai .message-content .tech-meta {
+  color: #888888;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  background: rgba(136, 136, 136, 0.1);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
 /* Enhanced Error States */
 .error-text {
   color: #ff6b6b;
@@ -1110,6 +1460,189 @@ body::before {
   margin: 12px 0;
   position: relative;
   animation: errorShake 0.5s ease-out;
+}
+
+/* ===== SMART CONTEXTUAL DARK GREY USAGE ===== */
+
+/* Auto-detect and style structured content patterns */
+.message.ai .message-content p:has(strong:first-child) {
+  margin-top: 20px;
+  margin-bottom: 12px;
+}
+
+.message.ai .message-content p:has(strong:first-child) strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 6px;
+  color: #D0FF16;
+  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
+}
+
+/* Detect bullet points that start with dashes */
+.message.ai .message-content p {
+  position: relative;
+}
+
+.message.ai .message-content p:has(> :first-child):where([data-starts-with-dash]) {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.message.ai .message-content p:has(> :first-child):where([data-starts-with-dash])::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #D0FF16;
+  font-weight: bold;
+}
+
+/* Step-by-step instructions with hierarchy */
+.message.ai .message-content .step-title {
+  color: #D0FF16;
+  font-weight: 600;
+}
+
+.message.ai .message-content .step-description {
+  color: #ffffff;
+  margin: 4px 0 8px 0;
+}
+
+.message.ai .message-content .step-note {
+  color: #888888;
+  font-size: 12px;
+  font-style: italic;
+  margin-left: 16px;
+}
+
+/* Comparison tables and data */
+.message.ai .message-content .comparison-label {
+  color: #D0FF16;
+  font-weight: 600;
+}
+
+.message.ai .message-content .comparison-value {
+  color: #ffffff;
+}
+
+.message.ai .message-content .comparison-note {
+  color: #888888;
+  font-size: 12px;
+}
+
+/* FAQ and Q&A styling */
+.message.ai .message-content .question {
+  color: #D0FF16;
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+.message.ai .message-content .answer {
+  color: #ffffff;
+  margin: 8px 0;
+}
+
+.message.ai .message-content .answer-note {
+  color: #888888;
+  font-size: 13px;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* Progress indicators and status */
+.message.ai .message-content .progress-label {
+  color: #D0FF16;
+  font-weight: 600;
+}
+
+.message.ai .message-content .progress-detail {
+  color: #888888;
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+/* ===== AUTO-STRUCTURED CONTENT IMPROVEMENTS ===== */
+
+/* Better spacing for auto-generated sections */
+.message.ai .message-content h2+p,
+.message.ai .message-content h3+p {
+  margin-top: 8px;
+}
+
+/* Style bullet points that use • character */
+.message.ai .message-content p:has(> :first-child):where(:contains("•")) {
+  padding-left: 20px;
+  margin: 6px 0;
+  position: relative;
+}
+
+/* Enhanced key-value pair styling */
+.message.ai .message-content p:has(strong:contains(":")) {
+  margin: 12px 0;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 3px solid rgba(208, 255, 22, 0.3);
+  border-radius: 0 6px 6px 0;
+}
+
+/* Method and function name highlighting */
+.message.ai .message-content code {
+  background: rgba(208, 255, 22, 0.15);
+  color: #D0FF16;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Space Mono', monospace;
+  font-size: 13px;
+  border: 1px solid rgba(208, 255, 22, 0.3);
+  font-weight: 500;
+  white-space: pre-wrap;
+}
+
+/* Special highlighting for method names */
+.message.ai .message-content p:has(strong):has(code) {
+  margin: 10px 0;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border-left: 3px solid rgba(208, 255, 22, 0.4);
+}
+
+.message.ai .message-content p:has(strong):has(code) strong {
+  color: #D0FF16;
+  font-weight: 600;
+}
+
+.message.ai .message-content p:has(strong):has(code) code {
+  background: rgba(208, 255, 22, 0.25);
+  color: #D0FF16;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+/* Summary sections get special treatment */
+.message.ai .message-content h2:contains("Summary") {
+  color: #D0FF16;
+  font-size: 18px;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: rgba(208, 255, 22, 0.08);
+  border-radius: 8px;
+  border-left: 4px solid #D0FF16;
+}
+
+/* Auto-detected sections with better visual separation */
+.message.ai .message-content>p:has(strong:only-child) {
+  margin-top: 20px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(208, 255, 22, 0.15);
+}
+
+.message.ai .message-content>p:has(strong:only-child) strong {
+  color: #D0FF16;
+  font-size: 15px;
+  font-weight: 600;
+  text-shadow: 0 0 4px rgba(208, 255, 22, 0.2);
 }
 
 .error-message {
@@ -1229,16 +1762,16 @@ body::before {
   padding: 16px;
 }
 
-/* Message Action Buttons */
+/* Message Action Buttons - Positioned outside content */
 .message-actions {
   display: flex;
-  gap: 6px;
-  margin-top: 12px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(208, 255, 22, 0.1);
+  gap: 8px;
+  margin-top: 16px;
+  margin-left: 24px;
   opacity: 0;
   transform: translateY(5px);
   transition: all 0.3s ease;
+  justify-content: flex-start;
 }
 
 .message:hover .message-actions {
@@ -1247,32 +1780,36 @@ body::before {
 }
 
 .action-btn {
-  background: rgba(208, 255, 22, 0.1);
-  border: 1px solid rgba(208, 255, 22, 0.2);
-  color: rgba(208, 255, 22, 0.8);
-  padding: 6px 10px;
+  background: rgba(208, 255, 22, 0.08);
+  border: 1px solid rgba(208, 255, 22, 0.15);
+  color: rgba(208, 255, 22, 0.7);
+  padding: 6px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 500;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  position: relative;
 }
 
 .action-btn:hover {
-  background: rgba(208, 255, 22, 0.2);
-  border-color: rgba(208, 255, 22, 0.4);
+  background: rgba(208, 255, 22, 0.15);
+  border-color: rgba(208, 255, 22, 0.3);
   color: #D0FF16;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(208, 255, 22, 0.2);
+  box-shadow: 0 2px 8px rgba(208, 255, 22, 0.15);
 }
 
 .action-btn:active {
   transform: translateY(0);
+}
+
+.action-btn i {
+  font-size: 11px;
 }
 
 .action-btn.success {
@@ -1723,18 +2260,7 @@ body::before {
   }
 }
 
-/* Enhanced Message Animations */
-@keyframes messageSlideIn {
-  0% {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
 
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
 
 @keyframes messageLoading {
 
@@ -2069,6 +2595,7 @@ UTILITY COMPONENTS ===== */
     border: 2px solid rgba(208, 255, 22, 0.5);
   }
 }
+
 /* ==
 === ENHANCED TRANSLATION STYLES ===== */
 
@@ -2100,7 +2627,8 @@ UTILITY COMPONENTS ===== */
   animation: spin 1s linear infinite;
 }
 
-.original-text, .target-info {
+.original-text,
+.target-info {
   margin: 8px 0;
   padding: 8px 12px;
   background: rgba(0, 0, 0, 0.3);
@@ -2109,7 +2637,8 @@ UTILITY COMPONENTS ===== */
   line-height: 1.4;
 }
 
-.original-text strong, .target-info strong {
+.original-text strong,
+.target-info strong {
   color: #D0FF16;
   margin-right: 6px;
 }
@@ -2152,7 +2681,8 @@ UTILITY COMPONENTS ===== */
   color: rgba(208, 255, 22, 0.8);
 }
 
-.detected-lang, .target-lang {
+.detected-lang,
+.target-lang {
   background: rgba(208, 255, 22, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
@@ -2250,11 +2780,11 @@ UTILITY COMPONENTS ===== */
     flex-direction: column;
     gap: 6px;
   }
-  
+
   .translation-actions .action-btn {
     justify-content: center;
   }
-  
+
   .language-info {
     flex-direction: column;
     gap: 4px;
@@ -2272,6 +2802,7 @@ UTILITY COMPONENTS ===== */
     opacity: 0;
     transform: translateY(20px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -2282,7 +2813,205 @@ UTILITY COMPONENTS ===== */
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
+  }
+}
+
+/* =
+==== ENHANCED MARKDOWN SUPPORT - INSPIRED BY AI SIDEBAR ===== */
+
+/* Better paragraph spacing in complex content */
+.message.ai .message-content p+h1,
+.message.ai .message-content p+h2,
+.message.ai .message-content p+h3,
+.message.ai .message-content p+h4,
+.message.ai .message-content p+h5,
+.message.ai .message-content p+h6 {
+  margin-top: 32px;
+}
+
+.message.ai .message-content h1+p,
+.message.ai .message-content h2+p,
+.message.ai .message-content h3+p,
+.message.ai .message-content h4+p,
+.message.ai .message-content h5+p,
+.message.ai .message-content h6+p {
+  margin-top: 8px;
+}
+
+/* Enhanced link styling */
+.message.ai .message-content a {
+  color: rgba(208, 255, 22, 0.9);
+  text-decoration: underline;
+  text-decoration-color: rgba(208, 255, 22, 0.5);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  position: relative;
+}
+
+.message.ai .message-content a:hover {
+  color: #D0FF16;
+  text-decoration-color: rgba(208, 255, 22, 0.8);
+  text-decoration-thickness: 2px;
+  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
+}
+
+.message.ai .message-content a::after {
+  content: '↗';
+  font-size: 10px;
+  margin-left: 2px;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.message.ai .message-content a:hover::after {
+  opacity: 1;
+}
+
+/* Better handling of mixed content blocks */
+.message.ai .message-content>*:first-child {
+  margin-top: 0;
+}
+
+.message.ai .message-content>*:last-child {
+  margin-bottom: 0;
+}
+
+/* Enhanced code block with copy functionality */
+.message.ai .message-content pre {
+  position: relative;
+  group: code-block;
+}
+
+.message.ai .message-content pre:hover::after {
+  content: 'Click to copy';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: rgba(208, 255, 22, 0.8);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Improved table responsiveness */
+.message.ai .message-content {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .message.ai .message-content table {
+    font-size: 12px;
+    min-width: 600px;
+  }
+
+  .message.ai .message-content th,
+  .message.ai .message-content td {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .message.ai .message-content th {
+    font-size: 12px;
+  }
+}
+
+/* Enhanced streaming indicators */
+.streaming-speed-indicator {
+  position: absolute;
+  top: -35px;
+  right: 0;
+  background: rgba(208, 255, 22, 0.1);
+  border: 1px solid rgba(208, 255, 22, 0.3);
+  color: #D0FF16;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 15;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.streaming-speed-indicator.visible {
+  opacity: 1;
+  animation: indicatorPulse 0.3s ease-out;
+}
+
+@keyframes indicatorPulse {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.9);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Better handling of content during streaming */
+.message.ai .message-content:has(.streaming-cursor) {
+  position: relative;
+  border: 1px solid rgba(208, 255, 22, 0.1);
+  transition: all 0.3s ease;
+}
+
+.message.ai .message-content:has(.streaming-cursor):hover {
+  background: rgba(208, 255, 22, 0.02);
+  border-color: rgba(208, 255, 22, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(208, 255, 22, 0.1);
+}
+
+.message.ai .message-content:has(.streaming-cursor)::after {
+  content: '⚡ Click to speed up • Double-click for instant';
+  position: absolute;
+  top: -35px;
+  right: 0;
+  background: rgba(0, 0, 0, 0.9);
+  color: rgba(208, 255, 22, 0.8);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  border: 1px solid rgba(208, 255, 22, 0.2);
+  font-weight: 500;
+}
+
+.message.ai .message-content:has(.streaming-cursor):hover::after {
+  opacity: 1;
+}
+
+/* Smooth content reveal animation */
+.message.ai .message-content {
+  animation: contentFadeIn 0.3s ease-out;
+}
+
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
