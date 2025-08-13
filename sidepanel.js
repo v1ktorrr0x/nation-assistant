@@ -481,37 +481,11 @@ function retryLastMessage() {
   }
 }
 
-/**
- * Development helper: Validate that all AI messages use streaming
- * This function can be called to check for any bypassed streaming
- */
-function validateStreamingImplementation() {
-  const aiMessages = document.querySelectorAll('.message.ai .message-content');
-  let bypassedCount = 0;
 
-  aiMessages.forEach((messageContent, index) => {
-    // Check if message was created without streaming indicators
-    const hasStreamingCursor = messageContent.querySelector('.streaming-cursor');
-    const hasStreamingIndicator = messageContent.querySelector('.streaming-speed-indicator');
-
-    // Check streaming implementation
-    if (!hasStreamingCursor && !hasStreamingIndicator && messageContent.innerHTML.length > 50) {
-      bypassedCount++;
-    }
-  });
-
-  // Development validation complete
-
-  return bypassedCount === 0;
-}
 
 // Removed complex structured response functions - universal CSS handles all content types automatically
 
-function formatPlainText(content) {
-  const escaped = escapeHtml(content);
-  const withBreaks = escaped.replace(/\n\n/g, '</p><p class="ai-text">').replace(/\n/g, '<br>');
-  return `<p class="ai-text">${withBreaks}</p>`;
-}
+
 
 function formatTime() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -867,30 +841,24 @@ function addMessage(content, sender, save = true) {
   // Handle content display - universal formatting for all content
   const formattedContent = formatAIResponse(content);
   if (sender === 'ai') {
-    // IMPORTANT: All AI messages MUST use streaming animation
     // Stop any existing streaming
     if (state.currentStreamingController) {
       state.currentStreamingController();
     }
 
-    // Start new streaming animation for AI responses
+    // Start streaming animation for AI responses
     const streamingController = startTypingEffect(messageContent, formattedContent);
     state.currentStreamingController = streamingController;
     
-    // Add action buttons after streaming completes - outside content area
+    // Add action buttons after streaming completes
     setTimeout(() => {
       if (!messageEl.querySelector('.message-actions')) {
         messageEl.appendChild(createMessageActions(content));
       }
-    }, 3000); // Wait for streaming to complete
+    }, 3000);
   } else {
     // System and user messages display immediately without streaming
     messageContent.innerHTML = formattedContent;
-    
-    // Add action buttons for AI messages (non-streaming case) - outside content area
-    if (sender === 'ai') {
-      messageEl.appendChild(createMessageActions(content));
-    }
   }
 
   smoothScrollToBottom();
@@ -1971,8 +1939,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       loadingMsg.remove();
     }
 
-    // Create enhanced translation result display
-    showTranslationResult(message);
+    // SIMPLIFIED: Just treat translation as a regular AI response
+    const { translation, targetLanguage, detectedLanguage, smart } = message;
+    let translationText = `**Translation to ${targetLanguage}:**\n\n"${translation}"`;
+    
+    if (smart && detectedLanguage) {
+      translationText = `**Smart Translation** (${detectedLanguage} → ${targetLanguage}):\n\n"${translation}"`;
+    }
+    
+    addAIMessage(translationText);
 
     // Clear the context action
     chrome.storage.local.remove(['contextAction']);
@@ -1991,110 +1966,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-function showTranslationResult(translationData) {
-  const { translation, targetLanguage, detectedLanguage, smart } = translationData;
-
-  // Create enhanced translation display using the standard addMessage with streaming
-  const messageEl = document.createElement('div');
-  messageEl.classList.add('message', 'ai');
-
-  const messageHeader = createMessageHeader('ai');
-  const messageContent = document.createElement('div');
-  messageContent.classList.add('message-content');
-
-  // Build the translation HTML content
-  let translationHTML = `
-    <div class="translation-result">
-      <div class="translation-header">
-        <div class="translation-badge">
-          ${smart ? '🌐 Smart Translation' : '🔄 Translation'}
-        </div>
-        ${smart && detectedLanguage ? `<div class="language-info">
-          <span class="detected-lang">${detectedLanguage}</span> → <span class="target-lang">${targetLanguage}</span>
-        </div>` : `<div class="language-info">
-          <span class="target-lang">→ ${targetLanguage}</span>
-        </div>`}
-      </div>
-      <div class="translation-content">
-        <div class="translation-text">${escapeHtml(translation)}</div>
-      </div>
-      <div class="translation-actions">
-        <button class="action-btn copy-translation" data-text="${escapeHtml(translation)}" title="Copy translation">
-          <i class="fas fa-copy"></i> Copy
-        </button>
-        <button class="action-btn explain-translation" title="Explain this translation">
-          <i class="fas fa-question-circle"></i> Explain
-        </button>
-        <button class="action-btn alternative-translation" title="Get alternative translation">
-          <i class="fas fa-sync-alt"></i> Alternative
-        </button>
-      </div>
-    </div>
-  `;
-
-  messageEl.appendChild(messageHeader);
-  messageEl.appendChild(messageContent);
-
-  // Add action buttons for AI messages (standard pattern) - outside content area
-  messageEl.appendChild(createMessageActions(translation));
-
-  elements.chatMessages.appendChild(messageEl);
-
-  // Stop any existing streaming
-  if (state.currentStreamingController) {
-    state.currentStreamingController();
-  }
-
-  // Start streaming animation for the translation result
-  state.currentStreamingController = startTypingEffect(messageContent, translationHTML);
-
-  // Add event listeners for translation-specific action buttons after streaming completes
-  setTimeout(() => {
-    const translationActions = messageContent.querySelector('.translation-actions');
-    if (translationActions) {
-      translationActions.addEventListener('click', (e) => {
-        const button = e.target.closest('.action-btn');
-        if (!button) return;
-
-        if (button.classList.contains('copy-translation')) {
-          copyTranslation(button.dataset.text, button);
-        } else if (button.classList.contains('explain-translation')) {
-          handleSendMessage(`Please explain this translation: "${translation}"`, false);
-        } else if (button.classList.contains('alternative-translation')) {
-          handleSendMessage(`Please provide an alternative translation for: "${translation}"`, false);
-        }
-      });
-    }
-  }, 1000); // Wait for streaming to complete
-
-  smoothScrollToBottom();
-
-  // Add follow-up suggestion with streaming animation
-  setTimeout(() => {
-    addAIMessage("💡 You can ask me to explain the translation, provide alternatives, or continue our conversation!");
-  }, 2000); // Delay to let translation streaming finish first
-}
-
-function copyTranslation(text, button) {
-  navigator.clipboard.writeText(text).then(() => {
-    // Show success feedback
-    const originalHTML = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-check"></i> Copied!';
-    button.classList.add('success');
-
-    setTimeout(() => {
-      button.innerHTML = originalHTML;
-      button.classList.remove('success');
-    }, 2000);
-  }).catch(() => {
-    // Show error feedback
-    const originalHTML = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-times"></i> Failed';
-    button.classList.add('error');
-
-    setTimeout(() => {
-      button.innerHTML = originalHTML;
-      button.classList.remove('error');
-    }, 2000);
-  });
-}
+// Removed complex showTranslationResult and copyTranslation functions
+// Translation now uses simple addAIMessage like any other AI response

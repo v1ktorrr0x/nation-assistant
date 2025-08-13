@@ -5,8 +5,6 @@
   "main": "background.js",
   "scripts": {
     "build": "echo 'No build process required for this extension'",
-    "test": "echo 'No tests specified'",
-    "lint": "echo 'Linting not configured'",
     "package": "zip -r nation-assistant-v2.0.0.zip . -x '*.git*' '*.vscode*' 'node_modules/*' 'package*.json'"
   },
   "keywords": [

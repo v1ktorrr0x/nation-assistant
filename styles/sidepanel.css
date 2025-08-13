@@ -280,8 +280,8 @@ body::before {
 /* ===== MESSAGE SYSTEM ===== */
 .message {
   margin-bottom: 32px;
-  opacity: 0;
-  transform: translateY(20px);
+  opacity: 1;
+  transform: translateX(0);
   animation: messageSlideIn 0.5s ease-out forwards;
 }
 
@@ -733,10 +733,7 @@ body::before {
   opacity: 1;
 }
 
-/* Enhanced message appearance */
-.message.ai {
-  animation: messageSlideIn 0.4s ease-out;
-}
+/* Enhanced message appearance - removed duplicate animation */
 
 @keyframes messageSlideIn {
   from {
@@ -2039,29 +2036,7 @@ body::before {
   margin-top: 16px;
 }
 
-/* Enhanced Loading States */
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.loading-overlay.hidden {
-  display: none;
-}
-
-.loading-overlay.visible {
-  opacity: 1;
-}
+/* Enhanced Loading States - Removed unused loading-overlay */
 
 .loading-content {
   display: flex;
@@ -2350,23 +2325,7 @@ UTILITY COMPONENTS ===== */
   color: rgba(208, 255, 22, 0.6);
 }
 
-/* Loading States */
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.loading-overlay.hidden {
-  display: none;
-}
+/* Loading States - Removed unused loading-overlay */
 
 .loading-content {
   display: flex;
