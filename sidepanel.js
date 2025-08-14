@@ -1,17 +1,17 @@
-// Nation Assistant Simple Chat Sidepanel
+// nation assistant chat sidepanel
 'use strict';
 
-// ===== COMPLETELY REWORKED AI RESPONSE SYSTEM =====
+// ai response formatting system
 
 /**
- * Minimal AI Response Formatter - Preserves original LLM structure
- * Only applies essential markdown formatting while maintaining original content flow
+ * minimal ai response formatter - preserves original llm structure
+ * only applies essential markdown formatting while maintaining original content flow
  */
 class AIResponseFormatter {
   constructor() {
-    // Minimal patterns - only essential markdown elements
+    // minimal patterns - only essential markdown elements
     this.patterns = {
-      // Headers - only if explicitly marked with #
+      // headers - only if explicitly marked with #
       h1: /^# (.+)$/gm,
       h2: /^## (.+)$/gm,
       h3: /^### (.+)$/gm,
@@ -19,30 +19,30 @@ class AIResponseFormatter {
       h5: /^##### (.+)$/gm,
       h6: /^###### (.+)$/gm,
 
-      // Lists - only if explicitly marked
+      // lists - only if explicitly marked
       bulletList: /^(\s*)[-*+•] (.+)$/gm,
       numberedList: /^(\s*)\d+\. (.+)$/gm,
 
-      // Basic text formatting
+      // basic text formatting
       bold: /\*\*(.*?)\*\*/g,
       italic: /\*([^*\n]+)\*/g,
       code: /`([^`\n]+)`/g,
 
-      // Code blocks
+      // code blocks
       codeBlock: /```(\w+)?\n?([\s\S]*?)```/g,
 
-      // Links
+      // links
       markdownLink: /\[([^\]]+)\]\(([^)]+)\)/g,
       autoLink: /(https?:\/\/[^\s<>"'`]+)/g,
 
-      // Blockquotes
+      // blockquotes
       blockquote: /^> (.+)$/gm,
 
-      // Horizontal rules
+      // horizontal rules
       horizontalRule: /^---+$/gm
     };
 
-    // Minimal state tracking
+    // minimal state tracking
     this.parsingState = {
       inCodeBlock: false,
       listStack: [],
@@ -59,13 +59,13 @@ class AIResponseFormatter {
     }
 
     try {
-      // Reset parsing state
+      // reset parsing state
       this.resetParsingState();
 
-      // Minimal normalization - preserve original line breaks and spacing
+      // minimal normalization - preserve original line breaks and spacing
       const normalized = this.minimalNormalize(content);
 
-      // Process with minimal changes to preserve LLM structure
+      // process with minimal changes to preserve llm structure
       const processed = this.processWithMinimalChanges(normalized);
 
       return processed;
@@ -90,7 +90,7 @@ class AIResponseFormatter {
     return content
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
-      // Don't convert tabs or trim - preserve original spacing
+      // don't convert tabs or trim - preserve original spacing
       ;
   }
 
@@ -99,15 +99,15 @@ class AIResponseFormatter {
    * Only apply essential formatting while keeping the natural flow
    */
   processWithMinimalChanges(content) {
-    // Process line by line but preserve original paragraph structure
+    // process line by line but preserve original paragraph structure
     const lines = content.split('\n');
     const processedLines = [];
     let currentParagraph = [];
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmed = line.trim();
-      
+
       // Handle code blocks first (preserve exactly as is)
       if (trimmed.startsWith('```')) {
         // Finish current paragraph if any
@@ -115,19 +115,19 @@ class AIResponseFormatter {
           processedLines.push(this.processParagraph(currentParagraph.join('\n')));
           currentParagraph = [];
         }
-        
+
         const codeBlockResult = this.handleCodeBlock(line, lines, i);
         processedLines.push(codeBlockResult.html);
         i += codeBlockResult.skipLines - 1; // -1 because loop will increment
         continue;
       }
-      
+
       // Skip processing if inside code block
       if (this.parsingState.inCodeBlock) {
         processedLines.push(this.escapeHtml(line));
         continue;
       }
-      
+
       // Handle explicit markdown elements
       if (this.isExplicitMarkdownElement(trimmed)) {
         // Finish current paragraph if any
@@ -135,12 +135,12 @@ class AIResponseFormatter {
           processedLines.push(this.processParagraph(currentParagraph.join('\n')));
           currentParagraph = [];
         }
-        
+
         // Process the markdown element
         processedLines.push(this.processMarkdownElement(line));
         continue;
       }
-      
+
       // Handle empty lines - preserve paragraph breaks
       if (!trimmed) {
         if (currentParagraph.length > 0) {
@@ -150,22 +150,22 @@ class AIResponseFormatter {
         processedLines.push(''); // Preserve empty line
         continue;
       }
-      
+
       // Regular content - accumulate into paragraph
       currentParagraph.push(line);
     }
-    
+
     // Process any remaining paragraph
     if (currentParagraph.length > 0) {
       processedLines.push(this.processParagraph(currentParagraph.join('\n')));
     }
-    
+
     // Close any open elements
     const closingTags = this.getClosingTags();
     if (closingTags) {
       processedLines.push(closingTags);
     }
-    
+
     return processedLines.join('\n');
   }
 
@@ -187,7 +187,7 @@ class AIResponseFormatter {
    */
   processMarkdownElement(line) {
     const trimmed = line.trim();
-    
+
     // Headers
     const headerMatch = trimmed.match(/^(#{1,6}) (.+)$/);
     if (headerMatch) {
@@ -195,27 +195,27 @@ class AIResponseFormatter {
       const content = this.processInlineFormatting(headerMatch[2]);
       return `<h${level}>${content}</h${level}>`;
     }
-    
+
     // Horizontal rules
     if (this.patterns.horizontalRule.test(trimmed)) {
       return '<hr>';
     }
-    
+
     // Blockquotes
     const blockquoteMatch = line.match(/^> (.+)$/);
     if (blockquoteMatch) {
       const content = this.processInlineFormatting(blockquoteMatch[1]);
       return `<blockquote>${content}</blockquote>`;
     }
-    
+
     // Lists
     const bulletMatch = line.match(/^(\s*)[-*+•] (.+)$/);
     const numberMatch = line.match(/^(\s*)\d+\. (.+)$/);
-    
+
     if (bulletMatch || numberMatch) {
       return this.processListItem(line, bulletMatch, numberMatch);
     }
-    
+
     // Fallback to paragraph
     return this.processParagraph(line);
   }
@@ -225,13 +225,13 @@ class AIResponseFormatter {
    */
   processParagraph(content) {
     if (!content.trim()) return '';
-    
+
     // Apply only inline formatting, preserve line structure
     const formatted = this.processInlineFormatting(content);
-    
+
     // Convert single line breaks to <br> to preserve original formatting
     const withBreaks = formatted.replace(/\n/g, '<br>');
-    
+
     return `<p>${withBreaks}</p>`;
   }
 
@@ -302,7 +302,7 @@ class AIResponseFormatter {
         html += `</${closingType}>`;
         this.parsingState.currentIndent = Math.max(0, this.parsingState.currentIndent - 2);
       }
-      
+
       // Start new list if needed
       if (this.parsingState.listStack.length === 0) {
         html += `<${listType}>`;
@@ -369,11 +369,9 @@ function formatAIResponse(content) {
   return aiFormatter.format(content);
 }
 
-// All formatting functions removed - using ultra-simple approach
+// formatting functions removed - using simple approach
 
-// Removed formatNumberedSections - universal CSS handles all formatting
-
-// ===== UTILITY FUNCTIONS =====
+// utility functions
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -443,20 +441,27 @@ function updateInputValidation() {
     const inputFooter = document.querySelector('.input-footer');
     if (inputFooter) {
       inputFooter.appendChild(counter);
+    } else {
+      // If no input footer exists, don't create the counter
+      return;
     }
   }
 
-  // Update counter display
+  // Calculate remaining characters
   const remaining = maxLength - length;
-  counter.textContent = `${length}/${maxLength}`;
 
-  // Update counter color based on remaining characters
-  if (remaining < 0) {
-    counter.className = 'char-counter error';
-  } else if (remaining < 100) {
-    counter.className = 'char-counter warning';
-  } else {
-    counter.className = 'char-counter';
+  // Update counter display (only if counter exists and is in DOM)
+  if (counter && counter.parentNode) {
+    counter.textContent = `${length}/${maxLength}`;
+
+    // Update counter color based on remaining characters
+    if (remaining < 0) {
+      counter.className = 'char-counter error';
+    } else if (remaining < 100) {
+      counter.className = 'char-counter warning';
+    } else {
+      counter.className = 'char-counter';
+    }
   }
 
   // Update input container border for visual feedback
@@ -493,9 +498,9 @@ function formatTime() {
 
 
 
-// ===== MAIN APPLICATION =====
+// main application
 
-// Global state and elements
+// global state and elements
 let elements = {};
 let state = {
   chatHistory: [],
@@ -505,7 +510,7 @@ let state = {
   lastUserMessage: null
 };
 
-// ===== APPLICATION FUNCTIONS =====
+// application functions
 
 async function init() {
   try {
@@ -695,13 +700,21 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
     }
   }
 
-  // Show immediate feedback with more specific status
-  showTypingIndicator();
-  setProcessing(true, isRegenerate ? 'Regenerating response...' : 'Reading page content...');
+  // Show immediate feedback with sleek status updates
+  showTypingIndicator('SCANNING...', 'reading');
+  setProcessing(true, isRegenerate ? 'REGENERATING...' : 'SCANNING...', 'reading');
 
   try {
-    // Update status to show we're analyzing
-    setProcessing(true, 'Analyzing page content...');
+    // Progressive status updates with terminal-style messages
+    setTimeout(() => {
+      updateTypingIndicator('PROCESSING...', 'analyzing');
+      setProcessing(true, 'PROCESSING...', 'analyzing');
+    }, 800);
+
+    setTimeout(() => {
+      updateTypingIndicator('GENERATING...', 'generating');
+      setProcessing(true, 'GENERATING...', 'generating');
+    }, 1600);
 
     const response = await chrome.runtime.sendMessage({
       type: 'chatWithPage',
@@ -722,6 +735,14 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
     }
   } catch (error) {
     hideTypingIndicator();
+
+    // Update connection status based on error type
+    if (error.message.includes('fetch') || error.message.includes('network')) {
+      updateConnectionStatus('disconnected');
+    } else if (error.message.includes('API key') || error.message.includes('401')) {
+      updateConnectionStatus('error');
+    }
+
     showError(error.message, {
       apiKey: error.message.includes('API key') || error.message.includes('401'),
       connection: error.message.includes('fetch') || error.message.includes('network') || error.message.includes('Failed to fetch')
@@ -793,7 +814,7 @@ function showError(message, context = {}) {
   actionBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const action = btn.dataset.action;
-      handleErrorAction(action);
+      handleErrorAction(action, errorEl);
     });
   });
 
@@ -801,18 +822,26 @@ function showError(message, context = {}) {
   smoothScrollToBottom();
 }
 
-function handleErrorAction(action) {
+function handleErrorAction(action, errorEl) {
   switch (action) {
     case 'configure-api':
       chrome.runtime.openOptionsPage();
       break;
     case 'retry':
+      // Remove error dialog immediately when retry is clicked
+      if (errorEl && errorEl.parentNode) {
+        errorEl.remove();
+      }
       retryLastMessage();
       break;
     case 'refresh':
       location.reload();
       break;
     case 'retry-delayed':
+      // Remove error dialog immediately when retry-delayed is clicked
+      if (errorEl && errorEl.parentNode) {
+        errorEl.remove();
+      }
       setTimeout(() => retryLastMessage(), 5000);
       break;
   }
@@ -846,12 +875,18 @@ function addMessage(content, sender, save = true) {
       state.currentStreamingController();
     }
 
+    // Add streaming class for CSS styling
+    messageContent.classList.add('streaming');
+
     // Start streaming animation for AI responses
     const streamingController = startTypingEffect(messageContent, formattedContent);
     state.currentStreamingController = streamingController;
-    
+
     // Add action buttons after streaming completes
     setTimeout(() => {
+      // Remove streaming class when done
+      messageContent.classList.remove('streaming');
+
       if (!messageEl.querySelector('.message-actions')) {
         messageEl.appendChild(createMessageActions(content));
       }
@@ -951,13 +986,35 @@ function regenerateLastResponse(button) {
   const lastUserMessage = state.chatHistory.slice().reverse().find(msg => msg.sender === 'user');
   if (!lastUserMessage) return;
 
-  // Show loading state on button
-  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-  button.title = 'Retrying...';
+  // Enhanced loading state on button
+  button.innerHTML = '<div class="enhanced-loading-spinner"></div>';
+  button.title = 'REGENERATING...';
   button.disabled = true;
+  button.classList.add('processing');
+
+  // Add visual feedback
+  button.style.transform = 'scale(0.95)';
+  button.style.background = 'rgba(208, 255, 22, 0.1)';
+  button.style.borderColor = 'rgba(208, 255, 22, 0.3)';
+
+  // Reset button state after processing
+  const originalReset = () => {
+    button.innerHTML = '<i class="fas fa-redo"></i>';
+    button.title = 'Regenerate response';
+    button.disabled = false;
+    button.classList.remove('processing');
+    button.style.transform = '';
+    button.style.background = '';
+    button.style.borderColor = '';
+  };
+
+  // Store reset function for cleanup
+  button.dataset.resetFunction = 'originalReset';
 
   // Resend the last message
-  handleSendMessage(lastUserMessage.content, true);
+  handleSendMessage(lastUserMessage.content, true).finally(() => {
+    setTimeout(originalReset, 500); // Small delay for better UX
+  });
 }
 
 // Modern welcome message with actionable suggestions
@@ -1083,6 +1140,7 @@ function streamContentWithStructure(element, streamableContent) {
     if (!isStreaming || currentIndex >= streamableContent.length) {
       // Streaming complete
       cursor.remove();
+      element.classList.remove('streaming');
       element.removeEventListener('click', handleClick);
       // Final scroll to ensure we're at the bottom
       smoothScrollToBottom();
@@ -1157,7 +1215,7 @@ function streamContentWithStructure(element, streamableContent) {
         currentElement.appendChild(cursor);
         break;
     }
-    
+
     // Auto-scroll to bottom after each item
     instantScrollToBottom();
   };
@@ -1696,26 +1754,82 @@ function getTypingChunks(html) {
   return chunks.filter(chunk => chunk.trim());
 }
 
-function showTypingIndicator() {
+function showTypingIndicator(statusText = 'THINKING...', stage = 'thinking') {
   const { chatMessages } = elements;
   if (!chatMessages) return;
 
+  // Remove existing indicator
+  hideTypingIndicator();
+
   const typingEl = document.createElement('div');
-  typingEl.classList.add('typing-indicator');
+  typingEl.classList.add('typing-indicator', `stage-${stage}`);
   typingEl.id = 'typing-indicator';
+
+  const stageIcons = {
+    reading: '<i class="fas fa-search"></i>',
+    analyzing: '<i class="fas fa-microchip"></i>',
+    generating: '<i class="fas fa-bolt"></i>',
+    translating: '<i class="fas fa-globe"></i>',
+    thinking: '<i class="fas fa-terminal"></i>'
+  };
+
   typingEl.innerHTML = `
-    <div class="typing-dot"></div>
-    <div class="typing-dot"></div>
-    <div class="typing-dot"></div>
-    <div class="typing-status">Thinking...</div>
+    <div class="typing-avatar">
+      ${stageIcons[stage] || stageIcons.thinking}
+    </div>
+    <div class="typing-content">
+      <div class="typing-status">${statusText}</div>
+    </div>
   `;
 
   chatMessages.appendChild(typingEl);
   smoothScrollToBottom();
+
+
 }
 
 function hideTypingIndicator() {
-  document.getElementById('typing-indicator')?.remove();
+  const indicator = document.getElementById('typing-indicator');
+  if (indicator) {
+    // Fade out animation before removal
+    indicator.style.opacity = '0';
+    indicator.style.transform = 'translateY(-10px)';
+    setTimeout(() => {
+      indicator.remove();
+    }, 300);
+  }
+}
+
+function updateTypingIndicator(statusText, stage = 'thinking') {
+  const indicator = document.getElementById('typing-indicator');
+  if (indicator) {
+    const statusEl = indicator.querySelector('.typing-status');
+    const avatarEl = indicator.querySelector('.typing-avatar');
+
+    if (statusEl) {
+      statusEl.textContent = statusText;
+    }
+
+    if (avatarEl) {
+      const stageIcons = {
+        reading: '<i class="fas fa-search"></i>',
+        analyzing: '<i class="fas fa-microchip"></i>',
+        generating: '<i class="fas fa-bolt"></i>',
+        translating: '<i class="fas fa-globe"></i>',
+        thinking: '<i class="fas fa-terminal"></i>'
+      };
+      avatarEl.innerHTML = stageIcons[stage] || stageIcons.thinking;
+    }
+
+    // Update stage class
+    indicator.className = `typing-indicator stage-${stage}`;
+
+    // Trigger a subtle animation to show the update
+    indicator.style.transform = 'scale(1.02)';
+    setTimeout(() => {
+      indicator.style.transform = 'scale(1)';
+    }, 200);
+  }
 }
 
 // Error handling utilities
@@ -1729,46 +1843,114 @@ function detectErrorType(message) {
   return 'generic';
 }
 
-function setProcessing(processing, statusText = 'Thinking...') {
+function setProcessing(processing, statusText = 'THINKING...', stage = 'thinking') {
   const { sendBtn, chatInput, inputContainer } = elements;
   state.isProcessing = processing;
 
-  // Update send button
+  // Update send button with enhanced feedback
   if (sendBtn) {
     sendBtn.disabled = processing || !chatInput?.value.trim();
     if (processing) {
-      sendBtn.innerHTML = '<div class="loading-spinner"></div>';
-      sendBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-      sendBtn.style.color = '#666666';
+      sendBtn.innerHTML = '<div class="enhanced-loading-spinner"></div>';
+      sendBtn.classList.add('processing');
+      sendBtn.style.background = 'rgba(208, 255, 22, 0.1)';
+      sendBtn.style.color = '#D0FF16';
+      sendBtn.style.borderColor = 'rgba(208, 255, 22, 0.3)';
+      sendBtn.title = statusText;
     } else {
       sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
+      sendBtn.classList.remove('processing');
+      sendBtn.style.borderColor = '';
+      sendBtn.title = 'Send message';
       handleInputChange();
     }
   }
 
-  // Update input container
+  // Update input container with visual feedback
   if (inputContainer) {
-    inputContainer.style.transition = 'opacity 0.3s ease';
-    inputContainer.style.opacity = processing ? '0.7' : '1';
+    inputContainer.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    if (processing) {
+      inputContainer.style.opacity = '0.7';
+      inputContainer.style.transform = 'scale(0.98)';
+      inputContainer.classList.add('processing');
+    } else {
+      inputContainer.style.opacity = '1';
+      inputContainer.style.transform = 'scale(1)';
+      inputContainer.classList.remove('processing');
+    }
   }
 
-  // Update input placeholder
+  // Update input placeholder with sleek terminal messages
   if (chatInput) {
     chatInput.disabled = processing;
-    chatInput.placeholder = processing
-      ? `Nation Assistant is ${statusText.toLowerCase()}...`
-      : 'Message Nation Assistant...';
+    if (processing) {
+      const terminalMessages = {
+        reading: 'SCANNING...',
+        analyzing: 'PROCESSING...',
+        generating: 'GENERATING...',
+        translating: 'TRANSLATING...',
+        thinking: 'THINKING...'
+      };
+      chatInput.placeholder = `${terminalMessages[stage] || 'PROCESSING...'}`;
+    } else {
+      chatInput.placeholder = 'Message Nation Assistant...';
+    }
   }
 
-  // Update typing indicator
+  // Update typing indicator with stage information
   const typingStatus = document.querySelector('.typing-status');
+  const typingIndicator = document.getElementById('typing-indicator');
   if (typingStatus && processing) {
     typingStatus.textContent = statusText;
+    if (typingIndicator) {
+      typingIndicator.className = `typing-indicator stage-${stage}`;
+    }
+  }
+
+  // Add processing state to body for global styling
+  if (processing) {
+    document.body.classList.add('processing');
+  } else {
+    document.body.classList.remove('processing');
+  }
+}
+
+function addConnectionStatusIndicator() {
+  const header = document.querySelector('.nation-header .header-actions');
+  if (header && !document.getElementById('connection-status')) {
+    const statusIndicator = document.createElement('div');
+    statusIndicator.id = 'connection-status';
+    statusIndicator.className = 'connection-status';
+    statusIndicator.innerHTML = '<div class="status-dot"></div>';
+    statusIndicator.title = 'Connection status';
+    header.insertBefore(statusIndicator, header.firstChild);
+  }
+}
+
+function updateConnectionStatus(status = 'connected') {
+  const indicator = document.getElementById('connection-status');
+  if (indicator) {
+    const dot = indicator.querySelector('.status-dot');
+    if (dot) {
+      dot.className = `status-dot ${status}`;
+
+      const statusMessages = {
+        connected: 'ONLINE',
+        connecting: 'CONNECTING...',
+        disconnected: 'OFFLINE',
+        error: 'ERROR'
+      };
+
+      indicator.title = statusMessages[status] || 'Unknown status';
+    }
   }
 }
 
 async function loadCurrentTab() {
   try {
+    addConnectionStatusIndicator();
+    updateConnectionStatus('connected');
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) {
       state.currentTabId = tab.id;
@@ -1792,6 +1974,9 @@ async function updateConnectionStatus(forceStatus = null) {
 
   const statusDot = statusElement.querySelector('.status-dot');
   const statusText = statusElement.querySelector('.status-text');
+
+  // Check if required elements exist
+  if (!statusDot || !statusText) return;
 
   if (forceStatus === false) {
     statusDot.style.background = '#ff6b6b';
@@ -1918,15 +2103,7 @@ function handleExplainAction(contextAction) {
   handleSendMessage(`Please explain this text: "${text}"`, false);
 }
 
-// Check if there's a context action
-async function hasContextAction() {
-  try {
-    const result = await chrome.storage.local.get(['contextAction']);
-    return result.contextAction && (Date.now() - result.contextAction.timestamp < 30000); // 30 seconds
-  } catch (error) {
-    return false;
-  }
-}
+// Duplicate function removed - hasContextAction already defined above
 
 
 
@@ -1942,11 +2119,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // SIMPLIFIED: Just treat translation as a regular AI response
     const { translation, targetLanguage, detectedLanguage, smart } = message;
     let translationText = `**Translation to ${targetLanguage}:**\n\n"${translation}"`;
-    
+
     if (smart && detectedLanguage) {
       translationText = `**Smart Translation** (${detectedLanguage} → ${targetLanguage}):\n\n"${translation}"`;
     }
-    
+
     addAIMessage(translationText);
 
     // Clear the context action

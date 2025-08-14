@@ -1,6 +1,6 @@
-/* ===== NATION ASSISTANT - MODERN SLEEK SIDEBAR ===== */
+/* nation assistant - modern sleek sidebar */
 
-/* ===== BASE STYLES ===== */
+/* base styles */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -21,7 +21,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ===== TERMINAL SCAN LINES ===== */
+/* terminal scan lines */
 body::before {
   content: '';
   position: fixed;
@@ -52,7 +52,7 @@ body::before {
   }
 }
 
-/* ===== MAIN LAYOUT ===== */
+/* main layout */
 .modern-chat-app {
   display: flex;
   flex-direction: column;
@@ -62,7 +62,7 @@ body::before {
   position: relative;
 }
 
-/* ===== HEADER SECTION ===== */
+/* header section */
 .nation-header {
   background: transparent;
   padding: 24px 20px 20px 20px;
@@ -189,7 +189,7 @@ body::before {
   transform: translateY(0);
 }
 
-/* ===== CONTEXT BAR ===== */
+/* context bar */
 .terminal-context-bar {
   background: transparent;
   padding: 12px 20px 16px 20px;
@@ -243,7 +243,7 @@ body::before {
   font-size: 8px;
 }
 
-/* ===== CHAT AREA ===== */
+/* chat area */
 .chat-container {
   overflow: hidden;
   background: transparent;
@@ -277,7 +277,7 @@ body::before {
   background: rgba(208, 255, 22, 0.35);
 }
 
-/* ===== MESSAGE SYSTEM ===== */
+/* message system */
 .message {
   margin-bottom: 32px;
   opacity: 1;
@@ -340,7 +340,7 @@ body::before {
   color: rgba(208, 255, 22, 0.4);
 }
 
-/* ===== MESSAGE CONTENT ===== */
+/* message content */
 .message-content {
   border-radius: 18px;
   padding: 24px;
@@ -362,38 +362,24 @@ body::before {
   box-shadow: 0 2px 8px rgba(208, 255, 22, 0.2);
 }
 
-/* AI Messages - Simple and readable with better text wrapping */
+/* ai message content - unified styling */
 .message.ai .message-content {
   background: rgba(0, 0, 0, 0.8);
   color: #ffffff;
   max-width: 90%;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  /* Improve text wrapping behavior */
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  hyphens: auto;
-  /* But prevent breaking within formatted elements */
-  word-break: normal;
-}
-
-/* Remove all complex AI content styling - using simple .ai-text class instead */
-
-/* ===== COMPLETELY REWORKED AI RESPONSE SYSTEM ===== */
-
-/* Base AI message container */
-.message.ai .message-content {
-  color: #ffffff;
   line-height: 1.6;
   font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: auto;
+  animation: contentFadeIn 0.3s ease-out;
 }
 
-/* ===== AUTOMATIC STRUCTURE DETECTION ===== */
-
-/* Auto-format content that looks like headers (bold text at start of paragraph) */
+/* semantic content styling */
+/* Bold text that appears to be headers */
 .message.ai .message-content p>strong:first-child:only-child,
 .message.ai .message-content p>b:first-child:only-child {
   display: block;
@@ -405,40 +391,13 @@ body::before {
   text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
 }
 
-/* Auto-format content that starts with "**" patterns (section headers) */
-.message.ai .message-content p:has(> strong:first-child) {
-  margin-top: 20px;
-  margin-bottom: 12px;
-}
-
-/* Auto-format bullet-like content (paragraphs starting with - or •) */
-.message.ai .message-content p:has(> :first-child):where(:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6)) {
-  position: relative;
-}
-
-/* Style paragraphs that contain colons (likely key-value pairs) */
-.message.ai .message-content p:has(strong):has(:contains(":")) strong {
-  color: #D0FF16;
-  font-weight: 600;
-}
-
-/* Auto-detect and style method/function names */
-.message.ai .message-content p:has(code:contains("()")) code {
-  background: rgba(208, 255, 22, 0.2);
-  color: #D0FF16;
-  font-weight: 600;
-}
-
-/* Auto-detect parenthetical information and make it secondary */
-.message.ai .message-content p:has(:contains("(")) {
-  position: relative;
-}
-
-/* Style content in parentheses as secondary */
-.message.ai .message-content em:contains("("),
-.message.ai .message-content span:contains("(") {
+/* Secondary text styling */
+.message.ai .message-content .secondary,
+.message.ai .message-content em.note,
+.message.ai .message-content span.note {
   color: #888888;
   font-size: 13px;
+  font-style: italic;
 }
 
 /* Reset and base styles */
@@ -447,11 +406,11 @@ body::before {
   max-width: 100%;
 }
 
-/* Paragraphs */
+/* paragraphs - consistent spacing */
 .message.ai .message-content p {
   color: #ffffff;
   line-height: 1.6;
-  margin: 16px 0;
+  margin: 12px 0;
   font-size: 14px;
 }
 
@@ -472,7 +431,7 @@ body::before {
   margin-bottom: 0;
 }
 
-/* Headers - Clean hierarchy */
+/* headers - consistent hierarchy */
 .message.ai .message-content h1,
 .message.ai .message-content h2,
 .message.ai .message-content h3,
@@ -484,6 +443,7 @@ body::before {
   margin: 24px 0 16px 0;
   line-height: 1.3;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
 }
 
 .message.ai .message-content h1 {
@@ -507,17 +467,17 @@ body::before {
 
 .message.ai .message-content h4 {
   font-size: 15px;
-  margin-bottom: 14px;
+  margin-bottom: 15px;
 }
 
 .message.ai .message-content h5 {
   font-size: 14px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .message.ai .message-content h6 {
   font-size: 13px;
-  margin-bottom: 12px;
+  margin-bottom: 13px;
 }
 
 /* First header has no top margin */
@@ -530,27 +490,19 @@ body::before {
   margin-top: 0;
 }
 
-/* Enhanced text formatting - inspired by AI sidebar with better line break handling */
+/* text formatting - consistent styling */
 .message.ai .message-content strong,
 .message.ai .message-content b {
   color: #D0FF16;
   font-weight: 600;
   text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
-  /* Prevent awkward line breaks within bold text */
-  display: inline-block;
-  word-break: keep-all;
-  hyphens: none;
 }
 
 .message.ai .message-content em,
 .message.ai .message-content i {
-  color: rgba(208, 255, 22, 0.9);
+  color: rgba(208, 255, 22, 0.85);
   font-style: italic;
   font-weight: 500;
-  /* Prevent awkward line breaks within italic text */
-  display: inline-block;
-  word-break: keep-all;
-  hyphens: none;
 }
 
 /* Subtle emphasis for less important italic text */
@@ -657,22 +609,22 @@ body::before {
   }
 }
 
-/* Streaming message styling */
-.message.ai .message-content:has(.streaming-cursor) {
+/* streaming message styling */
+.message.ai .message-content.streaming {
   cursor: pointer;
   position: relative;
   border: 1px solid rgba(208, 255, 22, 0.1);
   transition: all 0.3s ease;
 }
 
-.message.ai .message-content:has(.streaming-cursor):hover {
+.message.ai .message-content.streaming:hover {
   background: rgba(208, 255, 22, 0.02);
   border-color: rgba(208, 255, 22, 0.2);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(208, 255, 22, 0.1);
 }
 
-.message.ai .message-content:has(.streaming-cursor)::after {
+.message.ai .message-content.streaming::after {
   content: '⚡ Click to speed up • Double-click for instant';
   position: absolute;
   top: -30px;
@@ -690,7 +642,7 @@ body::before {
   border: 1px solid rgba(208, 255, 22, 0.2);
 }
 
-.message.ai .message-content:has(.streaming-cursor):hover::after {
+.message.ai .message-content.streaming:hover::after {
   opacity: 1;
 }
 
@@ -747,21 +699,17 @@ body::before {
   }
 }
 
-/* Enhanced Code styling - inspired by AI sidebar with better line break handling */
+/* code styling - consistent appearance */
 .message.ai .message-content code {
   background: rgba(208, 255, 22, 0.15);
   color: #D0FF16;
-  padding: 3px 6px;
+  padding: 2px 6px;
   border-radius: 4px;
   font-family: 'JetBrains Mono', 'Fira Code', 'Space Mono', monospace;
   font-size: 13px;
   border: 1px solid rgba(208, 255, 22, 0.3);
   font-weight: 500;
-  /* Prevent line breaks within inline code */
-  white-space: nowrap;
-  display: inline-block;
-  word-break: keep-all;
-  hyphens: none;
+  white-space: pre-wrap;
 }
 
 .message.ai .message-content pre {
@@ -833,7 +781,7 @@ body::before {
   background: rgba(208, 255, 22, 0.6);
 }
 
-/* Lists - Properly aligned and styled */
+/* lists - consistent spacing */
 .message.ai .message-content ul,
 .message.ai .message-content ol {
   margin: 16px 0;
@@ -843,7 +791,7 @@ body::before {
 }
 
 .message.ai .message-content li {
-  margin: 10px 0;
+  margin: 8px 0;
   padding-left: 24px;
   line-height: 1.6;
   color: #ffffff;
@@ -917,15 +865,15 @@ body::before {
   margin-bottom: 0;
 }
 
-/* Enhanced nested lists with better structure */
+/* nested lists - consistent indentation */
 .message.ai .message-content ul ul,
 .message.ai .message-content ol ol,
 .message.ai .message-content ul ol,
 .message.ai .message-content ol ul {
   margin: 8px 0;
-  padding-left: 24px;
+  padding-left: 20px;
   border-left: 1px solid rgba(208, 255, 22, 0.1);
-  margin-left: 8px;
+  margin-left: 4px;
 }
 
 /* Different bullet styles for nested lists */
@@ -1049,10 +997,7 @@ body::before {
   transition: background-color 0.2s ease;
 }
 
-/* Table scrolling wrapper */
-.message.ai .message-content {
-  overflow-x: auto !important;
-}
+/* Duplicate overflow rule removed - already defined in main AI content block */
 
 /* Mobile responsive tables */
 @media (max-width: 768px) {
@@ -1381,7 +1326,7 @@ body::before {
   margin: 24px 0;
 }
 
-/* ===== DARK GREY SEMANTIC ELEMENTS ===== */
+/* dark grey semantic elements */
 
 /* Captions, footnotes, and metadata */
 .message.ai .message-content .caption,
@@ -1459,7 +1404,7 @@ body::before {
   animation: errorShake 0.5s ease-out;
 }
 
-/* ===== SMART CONTEXTUAL DARK GREY USAGE ===== */
+/* smart contextual dark grey usage */
 
 /* Auto-detect and style structured content patterns */
 .message.ai .message-content p:has(strong:first-child) {
@@ -1557,7 +1502,7 @@ body::before {
   margin-left: 8px;
 }
 
-/* ===== AUTO-STRUCTURED CONTENT IMPROVEMENTS ===== */
+/* auto-structured content improvements */
 
 /* Better spacing for auto-generated sections */
 .message.ai .message-content h2+p,
@@ -1565,15 +1510,15 @@ body::before {
   margin-top: 8px;
 }
 
-/* Style bullet points that use • character */
-.message.ai .message-content p:has(> :first-child):where(:contains("•")) {
+/* Bullet points styling - using class-based approach for compatibility */
+.message.ai .message-content p.bullet-point {
   padding-left: 20px;
   margin: 6px 0;
   position: relative;
 }
 
-/* Enhanced key-value pair styling */
-.message.ai .message-content p:has(strong:contains(":")) {
+/* Key-value pair styling - using class-based approach */
+.message.ai .message-content p.key-value {
   margin: 12px 0;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.02);
@@ -1594,8 +1539,8 @@ body::before {
   white-space: pre-wrap;
 }
 
-/* Special highlighting for method names */
-.message.ai .message-content p:has(strong):has(code) {
+/* Method name highlighting - using class-based approach */
+.message.ai .message-content p.method-highlight {
   margin: 10px 0;
   padding: 12px 16px;
   background: rgba(0, 0, 0, 0.3);
@@ -1603,12 +1548,12 @@ body::before {
   border-left: 3px solid rgba(208, 255, 22, 0.4);
 }
 
-.message.ai .message-content p:has(strong):has(code) strong {
+.message.ai .message-content p.method-highlight strong {
   color: #D0FF16;
   font-weight: 600;
 }
 
-.message.ai .message-content p:has(strong):has(code) code {
+.message.ai .message-content p.method-highlight code {
   background: rgba(208, 255, 22, 0.25);
   color: #D0FF16;
   font-weight: 600;
@@ -1627,15 +1572,15 @@ body::before {
   border-left: 4px solid #D0FF16;
 }
 
-/* Auto-detected sections with better visual separation */
-.message.ai .message-content>p:has(strong:only-child) {
+/* Section headers - using class-based approach */
+.message.ai .message-content p.section-header {
   margin-top: 20px;
   margin-bottom: 12px;
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(208, 255, 22, 0.15);
 }
 
-.message.ai .message-content>p:has(strong:only-child) strong {
+.message.ai .message-content p.section-header strong {
   color: #D0FF16;
   font-size: 15px;
   font-weight: 600;
@@ -2061,6 +2006,17 @@ body::before {
   animation: spin 1s linear infinite;
 }
 
+.enhanced-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(208, 255, 22, 0.2);
+  border-radius: 50%;
+  border-top: 2px solid #D0FF16;
+  border-right: 2px solid rgba(208, 255, 22, 0.6);
+  animation: enhancedSpin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 8px rgba(208, 255, 22, 0.3);
+}
+
 .loading-text {
   font-size: 11px;
   color: #D0FF16;
@@ -2088,42 +2044,88 @@ body::before {
 .typing-indicator {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.7);
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.8);
   border: 1px solid rgba(208, 255, 22, 0.2);
-  border-radius: 12px;
-  margin-bottom: 16px;
-  max-width: 90%;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  max-width: 85%;
   animation: slideInUp 0.3s ease-out;
+  backdrop-filter: blur(15px);
+  position: relative;
+  overflow: hidden;
 }
 
-.typing-dot {
-  width: 4px;
-  height: 4px;
-  background: #D0FF16;
-  border-radius: 50%;
-  animation: typingDots 1.4s ease-in-out infinite both;
+
+
+.typing-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: rgba(208, 255, 22, 0.15);
+  border-radius: 4px;
+  color: #D0FF16;
+  font-size: 12px;
+  z-index: 1;
 }
 
-.typing-dot:nth-child(1) {
-  animation-delay: -0.32s;
+.typing-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  z-index: 1;
 }
 
-.typing-dot:nth-child(2) {
-  animation-delay: -0.16s;
-}
 
-.typing-dot:nth-child(3) {
-  animation-delay: 0s;
-}
 
 .typing-status {
-  margin-left: 8px;
   font-size: 10px;
-  color: rgba(208, 255, 22, 0.8);
+  color: rgba(208, 255, 22, 0.9);
+  font-weight: 600;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+}
+
+.typing-progress {
+  width: 100%;
+  height: 2px;
+  background: rgba(208, 255, 22, 0.1);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #D0FF16, rgba(208, 255, 22, 0.6));
+  border-radius: 1px;
+  transition: width 3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(208, 255, 22, 0.4);
+}
+
+/* Stage-specific styling */
+.typing-indicator.stage-reading .typing-avatar {
+  background: rgba(74, 158, 255, 0.2);
+  color: #4A9EFF;
+}
+
+.typing-indicator.stage-analyzing .typing-avatar {
+  background: rgba(255, 107, 107, 0.2);
+  color: #FF6B6B;
+}
+
+.typing-indicator.stage-generating .typing-avatar {
+  background: rgba(78, 205, 196, 0.2);
+  color: #4ECDC4;
+}
+
+.typing-indicator.stage-translating .typing-avatar {
+  background: rgba(255, 234, 167, 0.2);
+  color: #FFEAA7;
 }
 
 /* Loading Animations */
@@ -2177,25 +2179,7 @@ body::before {
   max-width: 95%;
 }
 
-.typing-dot {
-  width: 3px;
-  height: 3px;
-  background: #D0FF16;
-  border-radius: 50%;
-  animation: typingDots 1.4s ease-in-out infinite both;
-}
 
-.typing-dot:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.typing-dot:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-.typing-dot:nth-child(3) {
-  animation-delay: 0s;
-}
 
 /* Animations */
 @keyframes pulse {
@@ -2273,20 +2257,7 @@ body::before {
   }
 }
 
-@keyframes typingDots {
 
-  0%,
-  80%,
-  100% {
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-
-  40% {
-    transform: scale(1.2);
-    opacity: 1;
-  }
-}
 
 /* ===== 
 UTILITY COMPONENTS ===== */
@@ -2367,28 +2338,9 @@ UTILITY COMPONENTS ===== */
   max-width: 90%;
 }
 
-.typing-dot {
-  width: 3px;
-  height: 3px;
-  background: #D0FF16;
-  border-radius: 50%;
-  animation: typingDots 1.4s ease-in-out infinite both;
-  opacity: 0.6;
-}
 
-.typing-dot:nth-child(1) {
-  animation-delay: -0.32s;
-}
 
-.typing-dot:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-.typing-dot:nth-child(3) {
-  animation-delay: 0s;
-}
-
-/* ===== ANIMATIONS ===== */
+/* animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -2411,22 +2363,9 @@ UTILITY COMPONENTS ===== */
   }
 }
 
-@keyframes typingDots {
 
-  0%,
-  80%,
-  100% {
-    transform: scale(0.8);
-    opacity: 0.4;
-  }
 
-  40% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
-}
-
-/* ===== RESPONSIVE DESIGN ===== */
+/* responsive design */
 @media (max-width: 320px) {
   .header-content {
     padding: 8px;
@@ -2501,7 +2440,7 @@ UTILITY COMPONENTS ===== */
   }
 }
 
-/* ===== ACCESSIBILITY IMPROVEMENTS ===== */
+/* accessibility improvements */
 @media (prefers-reduced-motion: reduce) {
 
   .typing-indicator,
@@ -2843,7 +2782,6 @@ UTILITY COMPONENTS ===== */
 /* Enhanced code block with copy functionality */
 .message.ai .message-content pre {
   position: relative;
-  group: code-block;
 }
 
 .message.ai .message-content pre:hover::after {
@@ -2861,10 +2799,7 @@ UTILITY COMPONENTS ===== */
   z-index: 10;
 }
 
-/* Improved table responsiveness */
-.message.ai .message-content {
-  overflow-x: auto;
-}
+/* Duplicate overflow rule removed - already defined in main AI content block */
 
 @media (max-width: 768px) {
   .message.ai .message-content table {
@@ -2921,42 +2856,7 @@ UTILITY COMPONENTS ===== */
   }
 }
 
-/* Better handling of content during streaming */
-.message.ai .message-content:has(.streaming-cursor) {
-  position: relative;
-  border: 1px solid rgba(208, 255, 22, 0.1);
-  transition: all 0.3s ease;
-}
-
-.message.ai .message-content:has(.streaming-cursor):hover {
-  background: rgba(208, 255, 22, 0.02);
-  border-color: rgba(208, 255, 22, 0.2);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(208, 255, 22, 0.1);
-}
-
-.message.ai .message-content:has(.streaming-cursor)::after {
-  content: '⚡ Click to speed up • Double-click for instant';
-  position: absolute;
-  top: -35px;
-  right: 0;
-  background: rgba(0, 0, 0, 0.9);
-  color: rgba(208, 255, 22, 0.8);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 10px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-  z-index: 10;
-  white-space: nowrap;
-  border: 1px solid rgba(208, 255, 22, 0.2);
-  font-weight: 500;
-}
-
-.message.ai .message-content:has(.streaming-cursor):hover::after {
-  opacity: 1;
-}
+/* Duplicate streaming selectors removed - using class-based approach above */
 
 /* Smooth content reveal animation */
 .message.ai .message-content {
@@ -2973,4 +2873,162 @@ UTILITY COMPONENTS ===== */
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Enhance
+d Loading States Animations */
+@keyframes enhancedSpin {
+  0% {
+    transform: rotate(0deg);
+    border-top-color: #D0FF16;
+    border-right-color: rgba(208, 255, 22, 0.6);
+  }
+
+  25% {
+    border-top-color: rgba(208, 255, 22, 0.8);
+    border-right-color: #D0FF16;
+  }
+
+  50% {
+    transform: rotate(180deg);
+    border-top-color: rgba(208, 255, 22, 0.6);
+    border-right-color: rgba(208, 255, 22, 0.8);
+  }
+
+  75% {
+    border-top-color: #D0FF16;
+    border-right-color: rgba(208, 255, 22, 0.6);
+  }
+
+  100% {
+    transform: rotate(360deg);
+    border-top-color: #D0FF16;
+    border-right-color: rgba(208, 255, 22, 0.6);
+  }
+}
+
+@keyframes breathe {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.02);
+    opacity: 0.95;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 100%;
+  }
+}
+
+/* Enhanced Processing States */
+.send-button.processing {
+  background: rgba(208, 255, 22, 0.1) !important;
+  border: 1px solid rgba(208, 255, 22, 0.3);
+  transform: scale(0.95);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.send-button.processing:hover {
+  transform: scale(0.95);
+  background: rgba(208, 255, 22, 0.15) !important;
+}
+
+.input-container.processing {
+  border-color: rgba(208, 255, 22, 0.3);
+  box-shadow: 0 0 0 1px rgba(208, 255, 22, 0.1), 0 0 20px rgba(208, 255, 22, 0.05);
+}
+
+body.processing {
+  cursor: progress;
+}
+
+body.processing .chat-messages {
+  filter: brightness(0.95);
+}
+
+/* Enhanced feedback for different processing stages */
+.typing-indicator.stage-reading {
+  border-color: rgba(74, 158, 255, 0.3);
+}
+
+.typing-indicator.stage-analyzing {
+  border-color: rgba(255, 107, 107, 0.3);
+}
+
+.typing-indicator.stage-generating {
+  border-color: rgba(78, 205, 196, 0.3);
+}
+
+.typing-indicator.stage-translating {
+  border-color: rgba(255, 234, 167, 0.3);
+}
+
+/* Connec
+tion Status Indicator */
+.connection-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+  transition: all 0.3s ease;
+}
+
+.status-dot.connected {
+  background: #D0FF16;
+  box-shadow: 0 0 8px rgba(208, 255, 22, 0.5);
+  animation: pulse 2s infinite;
+}
+
+.status-dot.connecting {
+  background: #FFEAA7;
+  box-shadow: 0 0 8px rgba(255, 234, 167, 0.5);
+  animation: pulse 1s infinite;
+}
+
+.status-dot.disconnected {
+  background: #FF6B6B;
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.5);
+}
+
+.status-dot.error {
+  background: #FF5252;
+  box-shadow: 0 0 8px rgba(255, 82, 82, 0.5);
+  animation: pulse 0.5s infinite;
+}
+
+/* Enhanced message loading animation */
+.message.loading .message-content {
+  position: relative;
+  overflow: hidden;
+}
+
+.message.loading .message-content::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(208, 255, 22, 0.1), transparent);
+  animation: shimmer 1.5s infinite;
 }
