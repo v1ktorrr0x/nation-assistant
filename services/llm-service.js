@@ -1,6 +1,23 @@
 // Nation Assistant LLM Service - Crestal Network Integration
 'use strict';
 
+// Enable comprehensive logging for debugging
+const DEBUG = true;
+const logger = {
+  log: (message, ...args) => {
+    if (DEBUG) console.log(`[LLMService] ${message}`, ...args);
+  },
+  warn: (message, ...args) => {
+    if (DEBUG) console.warn(`[LLMService] ${message}`, ...args);
+  },
+  error: (message, ...args) => {
+    if (DEBUG) console.error(`[LLMService] ${message}`, ...args);
+  },
+  debug: (message, ...args) => {
+    if (DEBUG) console.debug(`[LLMService] ${message}`, ...args);
+  }
+};
+
 class LLMService {
   constructor() {
     this.apiKey = null;
@@ -17,7 +34,7 @@ class LLMService {
       await this.loadSettings();
       this.initialized = true;
     } catch (error) {
-      console.warn('LLM service initialization failed:', error.message);
+      logger.warn('LLM service initialization failed:', error.message);
     }
   }
 
@@ -115,30 +132,59 @@ class LLMService {
   }
 
   /**
-   * Chat with webpage content using a single optimized prompt
+   * Chat with webpage content using a single optimized prompt with enhanced context
    */
   async chatWithPage(pageContent, userQuery = "", chatHistory = []) {
     const finalQuery = userQuery.trim() === ""
       ? "What is this page about? Give me a brief overview."
       : userQuery;
 
+    // Build enhanced prompt with conversation history context
+    const contextualPrompt = this.buildContextualPrompt(finalQuery, pageContent, chatHistory);
+
     const messages = [
       {
         role: 'system',
         content: `You are a helpful web content assistant. Always respond in English. Answer questions about web pages naturally and conversationally. Keep responses concise unless the user asks for detailed information.`
       },
-      ...chatHistory.slice(-3),
       {
         role: 'user',
-        content: `${finalQuery}
-
-Here's the webpage content:
-${pageContent}`
+        content: contextualPrompt
       }
     ];
 
     const rawResponse = await this.makeRequest(messages);
     return this.formatResponse(rawResponse);
+  }
+
+  /**
+   * Build a contextual prompt that includes conversation history for better continuity
+   */
+  buildContextualPrompt(currentQuery, pageContent, chatHistory) {
+    let prompt = '';
+
+    // Add conversation context if exists
+    if (chatHistory.length > 0) {
+      prompt += `**CONVERSATION CONTEXT:**\n`;
+      
+      // Get last 4 messages (2 exchanges) for context
+      const recentHistory = chatHistory.slice(-4);
+      
+      recentHistory.forEach((msg) => {
+        const role = msg.role === 'user' ? 'My previous question' : 'Your previous response';
+        prompt += `${role}: ${msg.content}\n`;
+      });
+      
+      prompt += `\n**CURRENT QUESTION:** ${currentQuery}\n\n`;
+      prompt += `Please answer my current question while considering our previous conversation. `;
+      prompt += `If my current question relates to something we discussed before, reference that context appropriately.\n\n`;
+    } else {
+      prompt += `**QUESTION:** ${currentQuery}\n\n`;
+    }
+
+    prompt += `**WEBPAGE CONTENT:**\n${pageContent}`;
+
+    return prompt;
   }
 
   /**

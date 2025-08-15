@@ -3,6 +3,23 @@
 
 import { LLMService } from './services/llm-service.js';
 
+// Enable comprehensive logging for debugging
+const DEBUG = true;
+const logger = {
+  log: (message, ...args) => {
+    if (DEBUG) console.log(`[Background] ${message}`, ...args);
+  },
+  warn: (message, ...args) => {
+    if (DEBUG) console.warn(`[Background] ${message}`, ...args);
+  },
+  error: (message, ...args) => {
+    if (DEBUG) console.error(`[Background] ${message}`, ...args);
+  },
+  debug: (message, ...args) => {
+    if (DEBUG) console.debug(`[Background] ${message}`, ...args);
+  }
+};
+
 /**
  * Background Service - Extension coordinator
  */
@@ -22,7 +39,7 @@ class NationAssistantBackground {
             this.setupContextMenus();
             this.setupMessageHandlers();
         } catch (error) {
-            console.error('[Background] Initialization error:', error);
+            logger.error('Initialization error:', error);
         }
     }
 
@@ -36,8 +53,9 @@ class NationAssistantBackground {
             }
         });
         chrome.action.onClicked.addListener((tab) => {
+            logger.log('Extension icon clicked, opening sidepanel for tab:', tab.id);
             chrome.sidePanel.open({ tabId: tab.id }).catch(error => {
-                console.error('[Background] Failed to open sidepanel:', error);
+                logger.error('Failed to open sidepanel:', error);
             });
         });
 
@@ -45,6 +63,11 @@ class NationAssistantBackground {
             if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
                 this.ensureContentScript(tabId).catch(() => { });
             }
+        });
+
+        // Global keyboard shortcut handler
+        chrome.commands.onCommand.addListener((command) => {
+            this.handleCommand(command);
         });
     }
 
@@ -54,6 +77,26 @@ class NationAssistantBackground {
     async handleStorageChange(changes) {
         if (changes.crestalApiKey || changes.apiBaseUrl) {
             await this.llmService.loadSettings();
+        }
+    }
+
+    /**
+     * Handle keyboard commands
+     */
+    async handleCommand(command) {
+        try {
+            switch (command) {
+                case 'open-sidepanel':
+                    const tab = await this.getActiveTab();
+                    if (tab) {
+                        await chrome.sidePanel.open({ tabId: tab.id });
+                    }
+                    break;
+                default:
+                    console.log('[Background] Unknown command:', command);
+            }
+        } catch (error) {
+            console.error('[Background] Command handler error:', error);
         }
     }
 

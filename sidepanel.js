@@ -1,6 +1,23 @@
 // nation assistant chat sidepanel
 'use strict';
 
+// Enable comprehensive logging for debugging
+const DEBUG = true;
+const logger = {
+  log: (message, ...args) => {
+    if (DEBUG) console.log(`[Sidepanel] ${message}`, ...args);
+  },
+  warn: (message, ...args) => {
+    if (DEBUG) console.warn(`[Sidepanel] ${message}`, ...args);
+  },
+  error: (message, ...args) => {
+    if (DEBUG) console.error(`[Sidepanel] ${message}`, ...args);
+  },
+  debug: (message, ...args) => {
+    if (DEBUG) console.debug(`[Sidepanel] ${message}`, ...args);
+  }
+};
+
 // ai response formatting system
 
 /**
@@ -481,8 +498,30 @@ function updateInputValidation() {
  * Retry the last user message
  */
 function retryLastMessage() {
-  if (state.lastUserMessage && !state.isProcessing) {
-    handleSendMessage(state.lastUserMessage, true);
+  try {
+    logger.log('Retry attempt - lastUserMessage:', state.lastUserMessage, 'isProcessing:', state.isProcessing);
+
+    if (!state.lastUserMessage) {
+      logger.warn('No last message to retry');
+      addSystemMessage("No previous message to retry. Please send a new message.");
+      return;
+    }
+
+    if (state.isProcessing) {
+      logger.warn('Cannot retry while processing');
+      addSystemMessage("Please wait for the current request to complete before retrying.");
+      return;
+    }
+
+    logger.log('Retrying last message:', state.lastUserMessage);
+    
+    // Add a small delay to ensure UI state is properly reset
+    setTimeout(() => {
+      handleSendMessage(state.lastUserMessage, true);
+    }, 100);
+  } catch (error) {
+    logger.error('Error retrying last message:', error);
+    addSystemMessage("Failed to retry message. Please try sending a new message.");
   }
 }
 
@@ -681,7 +720,13 @@ async function handleRefresh() {
 async function handleSendMessage(messageText = null, isRegenerate = false) {
   const { chatInput } = elements;
   const message = messageText || chatInput?.value.trim();
-  if (!message || state.isProcessing) return;
+  
+  logger.log('handleSendMessage called:', { messageText, isRegenerate, message, isProcessing: state.isProcessing });
+  
+  if (!message || state.isProcessing) {
+    logger.warn('Message send blocked:', { hasMessage: !!message, isProcessing: state.isProcessing });
+    return;
+  }
 
   // Validate message length
   if (message.length > 4000) {
@@ -689,11 +734,14 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
     return;
   }
 
+  // Store message for retry functionality (always store, even when regenerating)
+  state.lastUserMessage = message;
+  logger.log('Stored last user message for retry:', message);
+
   // Add user message (skip if regenerating)
   let userMessageEl = null;
   if (!isRegenerate) {
     userMessageEl = addMessage(message, "user");
-    state.lastUserMessage = message; // Store for retry functionality
     if (chatInput) {
       chatInput.value = "";
       handleInputChange();
@@ -755,6 +803,8 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
 }
 
 function showError(message, context = {}) {
+  console.log('Showing error dialog:', { message, context });
+
   const errorEl = document.createElement('div');
   errorEl.classList.add('message', 'system');
 
@@ -800,7 +850,7 @@ function showError(message, context = {}) {
         <i class="fas fa-exclamation-triangle"></i>
         ${errorTitle}
       </div>
-      <div class="error-content">${message}</div>
+      <div class="error-content">${escapeHtml(message)}</div>
       <div class="error-actions">
         ${actionButtons}
       </div>
@@ -809,42 +859,27 @@ function showError(message, context = {}) {
 
   errorEl.innerHTML = errorContent;
 
-  // Add event listeners for error action buttons
-  const actionBtns = errorEl.querySelectorAll('.error-action-btn');
-  actionBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.dataset.action;
-      handleErrorAction(action, errorEl);
-    });
-  });
-
   elements.chatMessages.appendChild(errorEl);
-  smoothScrollToBottom();
-}
 
-function handleErrorAction(action, errorEl) {
-  switch (action) {
-    case 'configure-api':
-      chrome.runtime.openOptionsPage();
-      break;
-    case 'retry':
-      // Remove error dialog immediately when retry is clicked
-      if (errorEl && errorEl.parentNode) {
-        errorEl.remove();
-      }
-      retryLastMessage();
-      break;
-    case 'refresh':
-      location.reload();
-      break;
-    case 'retry-delayed':
-      // Remove error dialog immediately when retry-delayed is clicked
-      if (errorEl && errorEl.parentNode) {
-        errorEl.remove();
-      }
-      setTimeout(() => retryLastMessage(), 5000);
-      break;
-  }
+  // Add event listeners for error action buttons after DOM insertion
+  setTimeout(() => {
+    const actionBtns = errorEl.querySelectorAll('.error-action-btn');
+    console.log('Found action buttons:', actionBtns.length);
+
+    actionBtns.forEach((btn, index) => {
+      const action = btn.dataset.action;
+      console.log(`Setting up button ${index}:`, action);
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Error action button clicked:', action);
+        handleErrorAction(action, errorEl);
+      });
+    });
+  }, 100);
+
+  smoothScrollToBottom();
 }
 
 function addMessage(content, sender, save = true) {
@@ -1841,6 +1876,150 @@ function detectErrorType(message) {
     return 'network';
   }
   return 'generic';
+}
+
+function showError(message, context = {}) {
+  console.log('Showing error dialog:', { message, context });
+
+  const errorEl = document.createElement('div');
+  errorEl.classList.add('message', 'system');
+
+  // Provide more specific error guidance
+  let errorTitle = 'Something went wrong';
+  let actionButtons = '';
+
+  if (context.apiKey || message.includes('API key') || message.includes('401')) {
+    errorTitle = 'API Configuration Issue';
+    actionButtons = `
+      <button class="error-action-btn" data-action="configure-api">
+        <i class="fas fa-cog"></i> Configure API Key
+      </button>
+    `;
+  } else if (context.connection || message.includes('fetch') || message.includes('network')) {
+    errorTitle = 'Connection Problem';
+    actionButtons = `
+      <button class="error-action-btn" data-action="retry">
+        <i class="fas fa-redo"></i> Retry
+      </button>
+      <button class="error-action-btn" data-action="refresh">
+        <i class="fas fa-refresh"></i> Refresh
+      </button>
+    `;
+  } else if (message.includes('rate limit') || message.includes('429')) {
+    errorTitle = 'Rate Limit Reached';
+    actionButtons = `
+      <button class="error-action-btn" data-action="retry-delayed">
+        <i class="fas fa-clock"></i> Retry in 5s
+      </button>
+    `;
+  } else {
+    actionButtons = `
+      <button class="error-action-btn" data-action="retry">
+        <i class="fas fa-redo"></i> Try Again
+      </button>
+    `;
+  }
+
+  const errorContent = `
+    <div class="error-message">
+      <div class="error-header">
+        <i class="fas fa-exclamation-triangle"></i>
+        ${errorTitle}
+      </div>
+      <div class="error-content">${escapeHtml(message)}</div>
+      <div class="error-actions">
+        ${actionButtons}
+      </div>
+    </div>
+  `;
+
+  errorEl.innerHTML = errorContent;
+
+  elements.chatMessages.appendChild(errorEl);
+
+  // Add event listeners for error action buttons after DOM insertion
+  setTimeout(() => {
+    const actionBtns = errorEl.querySelectorAll('.error-action-btn');
+    console.log('Found action buttons:', actionBtns.length);
+
+    actionBtns.forEach((btn, index) => {
+      const action = btn.dataset.action;
+      console.log(`Setting up button ${index}:`, action);
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Error action button clicked:', action);
+        handleErrorAction(action, errorEl);
+      });
+    });
+  }, 100);
+
+  smoothScrollToBottom();
+}
+
+function handleErrorAction(action, errorEl) {
+  try {
+    switch (action) {
+      case 'configure-api':
+        chrome.runtime.openOptionsPage();
+        break;
+      case 'retry':
+        // Remove error dialog immediately when retry is clicked
+        if (errorEl && errorEl.parentNode) {
+          errorEl.remove();
+        }
+        // Ensure processing state is reset before retry
+        setProcessing(false);
+        retryLastMessage();
+        break;
+      case 'refresh':
+        location.reload();
+        break;
+      case 'retry-delayed':
+        // Show countdown feedback
+        const btn = errorEl.querySelector(`[data-action="${action}"]`);
+        if (btn) {
+          btn.disabled = true;
+          let countdown = 5;
+          btn.innerHTML = `<i class="fas fa-clock"></i> Retry in ${countdown}s`;
+
+          const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+              btn.innerHTML = `<i class="fas fa-clock"></i> Retry in ${countdown}s`;
+            } else {
+              clearInterval(countdownInterval);
+              if (errorEl && errorEl.parentNode) {
+                errorEl.remove();
+              }
+              // Ensure processing state is reset before retry
+              setProcessing(false);
+              retryLastMessage();
+            }
+          }, 1000);
+        } else {
+          // Fallback if button not found
+          setTimeout(() => {
+            if (errorEl && errorEl.parentNode) {
+              errorEl.remove();
+            }
+            // Ensure processing state is reset before retry
+            setProcessing(false);
+            retryLastMessage();
+          }, 5000);
+        }
+        break;
+      default:
+        console.warn('Unknown error action:', action);
+    }
+  } catch (error) {
+    console.error('Error handling action:', action, error);
+    // Fallback: just remove the error dialog
+    if (errorEl && errorEl.parentNode) {
+      errorEl.remove();
+    }
+  }
 }
 
 function setProcessing(processing, statusText = 'THINKING...', stage = 'thinking') {

@@ -887,18 +887,7 @@ body::before {
   color: rgba(208, 255, 22, 0.6);
 }
 
-/* Enhanced numbered list styling */
-.message.ai .message-content ol li::before {
-  background: rgba(208, 255, 22, 0.1);
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  border: 1px solid rgba(208, 255, 22, 0.3);
-}
+
 
 /* Enhanced blockquotes - inspired by AI sidebar */
 .message.ai .message-content blockquote {
