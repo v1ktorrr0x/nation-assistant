@@ -15,8 +15,7 @@ AI-powered Chrome extension that provides intelligent web content analysis throu
 - Quick access to AI insights without leaving the page
 
 ### 💬 **Advanced Chat Interface**
-- Streaming animation with speed controls (click to accelerate, double-click for instant)
-- Message actions (copy, regenerate, bookmark)
+- Message actions (copy, regenerate)
 - Enhanced error handling with actionable recovery options
 
 ### ⚡ **Smart User Experience**
@@ -62,16 +61,10 @@ AI-powered Chrome extension that provides intelligent web content analysis throu
 ## ⚙️ Configuration
 
 ### **API Setup**
-1. Get your API key from [Crestal Network](https://crestal.network)
+1. Get your API key from [Nation.Fun](nation.fun)
 2. Open extension settings (⚙️ icon)
 3. Enter your API key and test connection
 4. Customize response parameters if needed
-
-### **Customization Options**
-- **Model Selection**: Choose AI model (default: gpt-4.1-nano)
-- **Response Length**: Adjust max tokens (default: 300)
-- **Temperature**: Control response creativity (default: 0.7)
-- **Base URL**: Custom API endpoint (optional)
 
 ## 🔒 Security & Privacy
 
