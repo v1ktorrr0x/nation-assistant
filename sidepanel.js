@@ -329,25 +329,6 @@ function handleInputChange() {
     const text = chatInput.value.trim();
     const isValid = text && text.length <= 8000 && !state.isProcessing;
     sendBtn.disabled = !isValid;
-
-    // Update button appearance with better feedback
-    if (isValid) {
-      sendBtn.style.background = 'linear-gradient(135deg, #d0ff16 0%, #a8cc12 100%)';
-      sendBtn.style.color = '#000';
-      sendBtn.title = 'Send message';
-    } else if (state.isProcessing) {
-      sendBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-      sendBtn.style.color = '#666666';
-      sendBtn.title = 'Processing...';
-    } else if (!text) {
-      sendBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-      sendBtn.style.color = '#666666';
-      sendBtn.title = 'Enter a message to send';
-    } else if (text.length > 8000) {
-      sendBtn.style.background = 'rgba(255, 107, 107, 0.2)';
-      sendBtn.style.color = '#ff6b6b';
-      sendBtn.title = 'Message too long (max 8000 characters)';
-    }
   }
 }
 
@@ -1313,277 +1294,6 @@ function extractStreamableContent(container) {
   });
 }
 
-/**
- * Stream content with smooth animation and enhanced user controls
- */
-function streamContent(element, contentArray) {
-  element.innerHTML = '';
-
-  let currentIndex = 0;
-  let elementStack = [element];
-  let isStreaming = true;
-  let streamingSpeed = 1; // 1 = normal, 3 = fast, 0 = instant
-  let speedIndicator = null;
-
-  // Add streaming cursor
-  const cursor = document.createElement('span');
-  cursor.className = 'streaming-cursor';
-  cursor.textContent = '▋';
-
-  // Create speed indicator
-  function createSpeedIndicator() {
-    speedIndicator = document.createElement('div');
-    speedIndicator.className = 'streaming-speed-indicator';
-    speedIndicator.textContent = getSpeedText();
-    element.style.position = 'relative';
-    element.appendChild(speedIndicator);
-  }
-
-  function getSpeedText() {
-    switch (streamingSpeed) {
-      case 1: return 'Normal Speed';
-      case 3: return '3x Speed';
-      default: return 'Instant';
-    }
-  }
-
-  function updateSpeedIndicator() {
-    if (speedIndicator) {
-      speedIndicator.textContent = getSpeedText();
-      speedIndicator.classList.add('visible');
-      setTimeout(() => {
-        if (speedIndicator) {
-          speedIndicator.classList.remove('visible');
-        }
-      }, 1500);
-    }
-  }
-
-  // Add click handler to speed up streaming
-  const clickHandler = (e) => {
-    if (isStreaming && !e.target.closest('.message-actions')) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Cycle through speeds: Normal -> Fast -> Instant
-      if (streamingSpeed === 1) {
-        streamingSpeed = 3;
-        updateSpeedIndicator();
-      } else if (streamingSpeed === 3) {
-        streamingSpeed = 0;
-        finishStreaming();
-      }
-    }
-  };
-
-  // Add double-click handler for instant completion
-  const doubleClickHandler = (e) => {
-    if (isStreaming) {
-      e.preventDefault();
-      e.stopPropagation();
-      finishStreaming();
-    }
-  };
-
-  element.addEventListener('click', clickHandler);
-  element.addEventListener('dblclick', doubleClickHandler);
-
-  // Create speed indicator
-  createSpeedIndicator();
-
-  function finishStreaming() {
-    isStreaming = false;
-
-    // Remove cursor and speed indicator
-    const existingCursor = element.querySelector('.streaming-cursor');
-    if (existingCursor) {
-      existingCursor.remove();
-    }
-
-    if (speedIndicator) {
-      speedIndicator.remove();
-      speedIndicator = null;
-    }
-
-    // Show complete content instantly
-    element.innerHTML = '';
-    const newElementStack = [element];
-    contentArray.forEach(item => {
-      processStreamItem(item, newElementStack, element);
-    });
-
-    // Clean up event listeners
-    element.removeEventListener('click', clickHandler);
-    element.removeEventListener('dblclick', doubleClickHandler);
-
-    // Final scroll to bottom
-    smoothScrollToBottom();
-  }
-
-  function processStreamItem(item, stack, rootElement) {
-    const currentContainer = stack[stack.length - 1];
-
-    switch (item.type) {
-      case 'text':
-        const textNode = document.createTextNode(item.content);
-        currentContainer.appendChild(textNode);
-        break;
-
-      case 'element':
-        const completeElement = item.element.cloneNode(false);
-        completeElement.textContent = item.content;
-        currentContainer.appendChild(completeElement);
-        break;
-
-      case 'element_start':
-        const startElement = item.element.cloneNode(false);
-        currentContainer.appendChild(startElement);
-        stack.push(startElement);
-        break;
-
-      case 'element_end':
-        if (stack.length > 1) {
-          stack.pop();
-        }
-        break;
-    }
-  }
-
-  function streamNext() {
-    if (!isStreaming || currentIndex >= contentArray.length) {
-      finishStreaming();
-      return;
-    }
-
-    const item = contentArray[currentIndex];
-
-    // Remove existing cursor
-    const existingCursor = element.querySelector('.streaming-cursor');
-    if (existingCursor) {
-      existingCursor.remove();
-    }
-
-    // Process the current item
-    processStreamItem(item, elementStack, element);
-
-    // Add cursor at the end of current container
-    const currentContainer = elementStack[elementStack.length - 1];
-    currentContainer.appendChild(cursor);
-
-    // Auto-scroll to bottom during streaming
-    instantScrollToBottom();
-
-    currentIndex++;
-
-    // Calculate delay based on content type and streaming speed
-    let baseDelay = 50;
-
-    if (item.type === 'text') {
-      // Adjust delay based on word length and content
-      const wordLength = item.content.trim().length;
-      if (wordLength === 0) {
-        baseDelay = 10; // Spaces and whitespace
-      } else if (wordLength <= 3) {
-        baseDelay = 30; // Short words
-      } else if (wordLength <= 8) {
-        baseDelay = 50; // Medium words
-      } else {
-        baseDelay = 80; // Long words
-      }
-    } else if (item.type === 'element' && item.isBlock) {
-      baseDelay = 150; // Block elements get longer pause
-    } else if (item.type === 'element_start' || item.type === 'element_end') {
-      baseDelay = 20; // Quick for structural elements
-    }
-
-    // Apply speed multiplier
-    const delay = Math.max(5, Math.round(baseDelay / streamingSpeed));
-
-    setTimeout(streamNext, delay);
-  }
-
-  // Start streaming after a brief delay
-  setTimeout(streamNext, 100);
-
-  // Return a function to stop streaming
-  return () => {
-    finishStreaming();
-  };
-}
-
-function typeFormattedContent(element, content) {
-  const chunks = getTypingChunks(content);
-  let currentChunk = 0;
-
-  element.innerHTML = '';
-
-  function typeNextChunk() {
-    if (currentChunk < chunks.length) {
-      element.innerHTML += chunks[currentChunk];
-      currentChunk++;
-
-      // Auto-scroll to bottom
-      instantScrollToBottom();
-
-      setTimeout(typeNextChunk, 50); // Faster for chunks
-    }
-  }
-
-  typeNextChunk();
-}
-
-function typeSimpleContent(element, content) {
-  let currentIndex = 0;
-  const typingSpeed = 20;
-
-  element.innerHTML = '';
-
-  function typeNextChar() {
-    if (currentIndex < content.length) {
-      element.innerHTML = content.substring(0, currentIndex + 1);
-      currentIndex++;
-
-      instantScrollToBottom();
-
-      setTimeout(typeNextChar, typingSpeed);
-    }
-  }
-
-  typeNextChar();
-}
-
-function getTypingChunks(html) {
-  const chunks = [];
-  let currentChunk = '';
-  let inTag = false;
-  let tagDepth = 0;
-
-  for (let i = 0; i < html.length; i++) {
-    const char = html[i];
-
-    if (char === '<') {
-      inTag = true;
-      tagDepth++;
-    } else if (char === '>') {
-      inTag = false;
-      tagDepth--;
-    }
-
-    currentChunk += char;
-
-    // Create chunk when we complete a tag or reach text content
-    if (!inTag && tagDepth === 0 && (char === '>' || currentChunk.length >= 10)) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
-  }
-
-  if (currentChunk) {
-    chunks.push(currentChunk);
-  }
-
-  return chunks.filter(chunk => chunk.trim());
-}
 
 function showTypingIndicator(statusText = 'THINKING...', stage = 'thinking') {
   const { chatMessages } = elements;
@@ -1674,86 +1384,6 @@ function detectErrorType(message) {
   return 'generic';
 }
 
-function showError(message, context = {}) {
-  console.log('Showing error dialog:', { message, context });
-
-  const errorEl = document.createElement('div');
-  errorEl.classList.add('message', 'system');
-
-  // Provide more specific error guidance
-  let errorTitle = 'Something went wrong';
-  let actionButtons = '';
-
-  if (context.apiKey || message.includes('API key') || message.includes('401')) {
-    errorTitle = 'API Configuration Issue';
-    actionButtons = `
-      <button class="error-action-btn" data-action="configure-api">
-        <i class="fas fa-cog"></i> Configure API Key
-      </button>
-    `;
-  } else if (context.connection || message.includes('fetch') || message.includes('network')) {
-    errorTitle = 'Connection Problem';
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry">
-        <i class="fas fa-redo"></i> Retry
-      </button>
-      <button class="error-action-btn" data-action="refresh">
-        <i class="fas fa-refresh"></i> Refresh
-      </button>
-    `;
-  } else if (message.includes('rate limit') || message.includes('429')) {
-    errorTitle = 'Rate Limit Reached';
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry-delayed">
-        <i class="fas fa-clock"></i> Retry in 5s
-      </button>
-    `;
-  } else {
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry">
-        <i class="fas fa-redo"></i> Try Again
-      </button>
-    `;
-  }
-
-  const errorContent = `
-    <div class="error-message">
-      <div class="error-header">
-        <i class="fas fa-exclamation-triangle"></i>
-        ${errorTitle}
-      </div>
-      <div class="error-content">${escapeHtml(message)}</div>
-      <div class="error-actions">
-        ${actionButtons}
-      </div>
-    </div>
-  `;
-
-  errorEl.innerHTML = errorContent;
-
-  elements.chatMessages.appendChild(errorEl);
-
-  // Add event listeners for error action buttons after DOM insertion
-  setTimeout(() => {
-    const actionBtns = errorEl.querySelectorAll('.error-action-btn');
-    console.log('Found action buttons:', actionBtns.length);
-
-    actionBtns.forEach((btn, index) => {
-      const action = btn.dataset.action;
-      console.log(`Setting up button ${index}:`, action);
-
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Error action button clicked:', action);
-        handleErrorAction(action, errorEl);
-      });
-    });
-  }, 100);
-
-  smoothScrollToBottom();
-}
-
 function handleErrorAction(action, errorEl) {
   try {
     switch (action) {
@@ -1819,52 +1449,11 @@ function handleErrorAction(action, errorEl) {
 }
 
 function setProcessing(processing, statusText = 'THINKING...', stage = 'thinking') {
-  const { sendBtn, chatInput, inputContainer } = elements;
+  state.isProcessing = processing;
+  document.body.classList.toggle('processing', processing);
 
-  try {
-    state.isProcessing = processing;
-    logger.debug(`Setting processing state: ${processing}, status: ${statusText}`);
-  } catch (error) {
-    logger.error('Error setting processing state:', error);
-    // Fallback to safe state
-    state.isProcessing = false;
-    processing = false;
-  }
+  const { chatInput, sendBtn } = elements;
 
-  // Update send button with enhanced feedback
-  if (sendBtn) {
-    sendBtn.disabled = processing || !chatInput?.value.trim();
-    if (processing) {
-      sendBtn.innerHTML = '<div class="enhanced-loading-spinner"></div>';
-      sendBtn.classList.add('processing');
-      sendBtn.style.background = 'rgba(208, 255, 22, 0.1)';
-      sendBtn.style.color = '#D0FF16';
-      sendBtn.style.borderColor = 'rgba(208, 255, 22, 0.3)';
-      sendBtn.title = statusText;
-    } else {
-      sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
-      sendBtn.classList.remove('processing');
-      sendBtn.style.borderColor = '';
-      sendBtn.title = 'Send message';
-      handleInputChange();
-    }
-  }
-
-  // Update input container with visual feedback
-  if (inputContainer) {
-    inputContainer.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    if (processing) {
-      inputContainer.style.opacity = '0.7';
-      inputContainer.style.transform = 'scale(0.98)';
-      inputContainer.classList.add('processing');
-    } else {
-      inputContainer.style.opacity = '1';
-      inputContainer.style.transform = 'scale(1)';
-      inputContainer.classList.remove('processing');
-    }
-  }
-
-  // Update input placeholder with sleek terminal messages
   if (chatInput) {
     chatInput.disabled = processing;
     if (processing) {
@@ -1881,22 +1470,28 @@ function setProcessing(processing, statusText = 'THINKING...', stage = 'thinking
     }
   }
 
-  // Update typing indicator with stage information
-  const typingStatus = document.querySelector('.typing-status');
-  const typingIndicator = document.getElementById('typing-indicator');
-  if (typingStatus && processing) {
-    typingStatus.textContent = statusText;
-    if (typingIndicator) {
-      typingIndicator.className = `typing-indicator stage-${stage}`;
+  if (sendBtn) {
+    sendBtn.disabled = processing || !chatInput?.value.trim();
+    sendBtn.title = processing ? statusText : 'Send message';
+    if (processing) {
+      sendBtn.innerHTML = '<div class="enhanced-loading-spinner"></div>';
+    } else {
+      sendBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
     }
   }
 
-  // Add processing state to body for global styling
-  if (processing) {
-    document.body.classList.add('processing');
-  } else {
-    document.body.classList.remove('processing');
+  // Update typing indicator if it exists
+  const typingIndicator = document.getElementById('typing-indicator');
+  if (typingIndicator && processing) {
+    const statusEl = typingIndicator.querySelector('.typing-status');
+    if (statusEl) {
+      statusEl.textContent = statusText;
+    }
+    typingIndicator.className = `typing-indicator stage-${stage}`;
   }
+
+  // This will trigger the CSS-based styles
+  handleInputChange();
 }
 
 function addConnectionStatusIndicator() {
@@ -2086,8 +1681,6 @@ function handleExplainAction(contextAction) {
   addMessage(`Selected text: "${text}"`, "system", false);
   handleSendMessage(`Please explain this text: "${text}"`, false);
 }
-
-// Duplicate function removed - hasContextAction already defined above
 
 
 

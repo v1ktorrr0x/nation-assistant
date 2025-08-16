@@ -5,9 +5,18 @@ if (!window.nationAssistantInjected) {
   window.nationAssistantInjected = true;
 
   function extractText() {
-    const text = document.body.innerText;
-    const cleaned = text.replace(/\s+/g, ' ').trim();
-    return cleaned.length > 20000 ? cleaned.substring(0, 20000) + '...' : cleaned;
+    try {
+      const documentClone = document.cloneNode(true);
+      const article = new Readability(documentClone).parse();
+      const text = article ? article.textContent : document.body.innerText;
+      const cleaned = text.replace(/\s+/g, ' ').trim();
+      return cleaned.length > 20000 ? cleaned.substring(0, 20000) + '...' : cleaned;
+    } catch (e) {
+      // Fallback to innerText if Readability fails
+      const text = document.body.innerText;
+      const cleaned = text.replace(/\s+/g, ' ').trim();
+      return cleaned.length > 20000 ? cleaned.substring(0, 20000) + '...' : cleaned;
+    }
   }
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'PING') {

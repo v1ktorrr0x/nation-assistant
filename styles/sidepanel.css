@@ -1894,6 +1894,35 @@ body::before {
 .send-button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.1);
+  color: #666666;
+}
+
+.send-button:not(:disabled) {
+    background: linear-gradient(135deg, #d0ff16 0%, #a8cc12 100%);
+    color: #000;
+}
+
+body.processing .send-button {
+  cursor: progress;
+  background: rgba(208, 255, 22, 0.1) !important;
+  border: 1px solid rgba(208, 255, 22, 0.3);
+  transform: scale(0.95);
+}
+
+body.processing .send-button .enhanced-loading-spinner {
+    display: block;
+}
+
+body.processing .send-button i {
+    display: none;
+}
+
+body.processing .input-container {
+  opacity: 0.7;
+  transform: scale(0.98);
+  border-color: rgba(208, 255, 22, 0.3);
+  box-shadow: 0 0 0 1px rgba(208, 255, 22, 0.1), 0 0 20px rgba(208, 255, 22, 0.05);
 }
 
 .input-actions {
