@@ -209,6 +209,21 @@ class NationAssistantBackground {
                     sendResponse(result);
                     break;
 
+                case 'analyzePageContent':
+                    const analyzeResult = await this.handleAnalyzePage(message);
+                    sendResponse(analyzeResult);
+                    break;
+
+                case 'summarizePageContent':
+                    const summarizeResult = await this.handleSummarizePage(message);
+                    sendResponse(summarizeResult);
+                    break;
+
+                case 'extractKeyInsights':
+                    const insightsResult = await this.handleExtractInsights(message);
+                    sendResponse(insightsResult);
+                    break;
+
                 case 'testConnection':
                     if (message.testConfig) {
                         // Test with provided configuration (from options page)
@@ -337,6 +352,63 @@ class NationAssistantBackground {
         if (!response?.pageContent) throw new Error('No page content');
 
         const llmResponse = await this.llmService.chatWithPage(response.pageContent, question, chatHistory);
+
+        return { success: true, data: { response: llmResponse } };
+    }
+
+    /**
+     * Handle page analysis with specialized prompt
+     */
+    async handleAnalyzePage(message) {
+        const { tabId } = message;
+
+        const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
+        if (!tab) throw new Error('No active tab');
+
+        await this.ensureContentScript(tab.id);
+
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' });
+        if (!response?.pageContent) throw new Error('No page content');
+
+        const llmResponse = await this.llmService.analyzePage(response.pageContent);
+
+        return { success: true, data: { response: llmResponse } };
+    }
+
+    /**
+     * Handle page summarization with specialized prompt
+     */
+    async handleSummarizePage(message) {
+        const { tabId } = message;
+
+        const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
+        if (!tab) throw new Error('No active tab');
+
+        await this.ensureContentScript(tab.id);
+
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' });
+        if (!response?.pageContent) throw new Error('No page content');
+
+        const llmResponse = await this.llmService.summarizePage(response.pageContent);
+
+        return { success: true, data: { response: llmResponse } };
+    }
+
+    /**
+     * Handle key insights extraction with specialized prompt
+     */
+    async handleExtractInsights(message) {
+        const { tabId } = message;
+
+        const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
+        if (!tab) throw new Error('No active tab');
+
+        await this.ensureContentScript(tab.id);
+
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' });
+        if (!response?.pageContent) throw new Error('No page content');
+
+        const llmResponse = await this.llmService.extractKeyInsights(response.pageContent);
 
         return { success: true, data: { response: llmResponse } };
     }

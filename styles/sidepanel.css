@@ -378,18 +378,7 @@ body::before {
   animation: contentFadeIn 0.3s ease-out;
 }
 
-/* semantic content styling */
-/* Bold text that appears to be headers */
-.message.ai .message-content p>strong:first-child:only-child,
-.message.ai .message-content p>b:first-child:only-child {
-  display: block;
-  font-size: 16px;
-  color: #D0FF16;
-  margin-bottom: 8px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(208, 255, 22, 0.2);
-  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
-}
+/* Removed automatic header detection - preserve LLM's original formatting intent */
 
 /* Secondary text styling */
 .message.ai .message-content .secondary,
@@ -490,12 +479,12 @@ body::before {
   margin-top: 0;
 }
 
-/* text formatting - consistent styling */
+/* text formatting - simple inline styling that preserves LLM intent */
 .message.ai .message-content strong,
 .message.ai .message-content b {
   color: #D0FF16;
   font-weight: 600;
-  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
+  /* No text-shadow or special effects - keep it simple */
 }
 
 .message.ai .message-content em,
@@ -827,9 +816,14 @@ body::before {
   line-height: 1.6;
 }
 
-/* Numbers for ordered lists */
+/* Numbers for ordered lists - respects start attribute */
 .message.ai .message-content ol {
   counter-reset: list-counter;
+}
+
+/* Ordered lists with custom start attribute */
+.message.ai .message-content ol[start] {
+  counter-reset: list-counter calc(attr(start number, 1) - 1);
 }
 
 .message.ai .message-content ol li::before {
@@ -844,6 +838,17 @@ body::before {
   text-align: right;
   padding-right: 4px;
 }
+
+/* Fallback for browsers that don't support attr() in counter-reset */
+.message.ai .message-content ol[start="2"] { counter-reset: list-counter 1; }
+.message.ai .message-content ol[start="3"] { counter-reset: list-counter 2; }
+.message.ai .message-content ol[start="4"] { counter-reset: list-counter 3; }
+.message.ai .message-content ol[start="5"] { counter-reset: list-counter 4; }
+.message.ai .message-content ol[start="6"] { counter-reset: list-counter 5; }
+.message.ai .message-content ol[start="7"] { counter-reset: list-counter 6; }
+.message.ai .message-content ol[start="8"] { counter-reset: list-counter 7; }
+.message.ai .message-content ol[start="9"] { counter-reset: list-counter 8; }
+.message.ai .message-content ol[start="10"] { counter-reset: list-counter 9; }
 
 /* Nested lists */
 .message.ai .message-content ul ul,
@@ -885,6 +890,45 @@ body::before {
 .message.ai .message-content ul ul ul li::before {
   content: '▪';
   color: rgba(208, 255, 22, 0.6);
+}
+
+/* Task list styling */
+.message.ai .message-content ul.task-list {
+  list-style: none;
+}
+
+.message.ai .message-content ul.task-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-left: 0;
+}
+
+.message.ai .message-content ul.task-list li::before {
+  display: none;
+}
+
+.message.ai .message-content ul.task-list li input[type="checkbox"] {
+  margin-top: 2px;
+  accent-color: #D0FF16;
+  transform: scale(1.1);
+}
+
+.message.ai .message-content ul.task-list li.checked {
+  opacity: 0.7;
+  text-decoration: line-through;
+  text-decoration-color: rgba(208, 255, 22, 0.5);
+}
+
+/* Strikethrough styling */
+.message.ai .message-content del {
+  color: #888888;
+  text-decoration: line-through;
+  text-decoration-color: rgba(136, 136, 136, 0.7);
+  text-decoration-thickness: 2px;
+  background: linear-gradient(to right, transparent 0%, rgba(136, 136, 136, 0.1) 50%, transparent 100%);
+  padding: 1px 2px;
+  border-radius: 2px;
 }
 
 
@@ -1395,19 +1439,7 @@ body::before {
 
 /* smart contextual dark grey usage */
 
-/* Auto-detect and style structured content patterns */
-.message.ai .message-content p:has(strong:first-child) {
-  margin-top: 20px;
-  margin-bottom: 12px;
-}
-
-.message.ai .message-content p:has(strong:first-child) strong {
-  display: block;
-  font-size: 15px;
-  margin-bottom: 6px;
-  color: #D0FF16;
-  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
-}
+/* Removed auto-detection - preserve LLM's original formatting intent */
 
 /* Detect bullet points that start with dashes */
 .message.ai .message-content p {
@@ -2728,36 +2760,7 @@ UTILITY COMPONENTS ===== */
   margin-top: 8px;
 }
 
-/* Enhanced link styling */
-.message.ai .message-content a {
-  color: rgba(208, 255, 22, 0.9);
-  text-decoration: underline;
-  text-decoration-color: rgba(208, 255, 22, 0.5);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  position: relative;
-}
-
-.message.ai .message-content a:hover {
-  color: #D0FF16;
-  text-decoration-color: rgba(208, 255, 22, 0.8);
-  text-decoration-thickness: 2px;
-  text-shadow: 0 0 4px rgba(208, 255, 22, 0.3);
-}
-
-.message.ai .message-content a::after {
-  content: '↗';
-  font-size: 10px;
-  margin-left: 2px;
-  opacity: 0.6;
-  transition: opacity 0.3s ease;
-}
-
-.message.ai .message-content a:hover::after {
-  opacity: 1;
-}
+/* Duplicate link styling removed - using the earlier definition */
 
 /* Better handling of mixed content blocks */
 .message.ai .message-content>*:first-child {

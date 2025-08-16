@@ -7,7 +7,7 @@ if (!window.nationAssistantInjected) {
   function extractText() {
     const text = document.body.innerText;
     const cleaned = text.replace(/\s+/g, ' ').trim();
-    return cleaned.length > 6000 ? cleaned.substring(0, 6000) + '...' : cleaned;
+    return cleaned.length > 20000 ? cleaned.substring(0, 20000) + '...' : cleaned;
   }
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'PING') {

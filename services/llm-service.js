@@ -166,15 +166,15 @@ class LLMService {
     // Add conversation context if exists
     if (chatHistory.length > 0) {
       prompt += `**CONVERSATION CONTEXT:**\n`;
-      
+
       // Get last 4 messages (2 exchanges) for context
       const recentHistory = chatHistory.slice(-4);
-      
+
       recentHistory.forEach((msg) => {
         const role = msg.role === 'user' ? 'My previous question' : 'Your previous response';
         prompt += `${role}: ${msg.content}\n`;
       });
-      
+
       prompt += `\n**CURRENT QUESTION:** ${currentQuery}\n\n`;
       prompt += `Please answer my current question while considering our previous conversation. `;
       prompt += `If my current question relates to something we discussed before, reference that context appropriately.\n\n`;
@@ -185,6 +185,100 @@ class LLMService {
     prompt += `**WEBPAGE CONTENT:**\n${pageContent}`;
 
     return prompt;
+  }
+
+  /**
+   * Analyze webpage content with specialized prompt
+   */
+  async analyzePage(pageContent) {
+    const messages = [
+      {
+        role: 'system',
+        content: `You are an expert web content analyst. Provide comprehensive analysis of web pages including purpose, structure, key information, and context. Always respond in English.`
+      },
+      {
+        role: 'user',
+        content: `Please analyze this webpage and provide:
+
+1. **Page Purpose & Type**: What is this page about and what type of content is it?
+2. **Main Topic**: The primary subject or theme
+3. **Content Structure**: How the information is organized
+4. **Target Audience**: Who this content is intended for
+5. **Key Information**: The most important details or data presented
+6. **Context & Background**: Any relevant context or background information
+
+**WEBPAGE CONTENT:**
+${pageContent}`
+      }
+    ];
+
+    const rawResponse = await this.makeRequest(messages);
+    return this.formatResponse(rawResponse);
+  }
+
+  /**
+   * Summarize webpage content with specialized prompt
+   */
+  async summarizePage(pageContent) {
+    const messages = [
+      {
+        role: 'system',
+        content: `You are an expert content summarizer. Create concise, well-structured summaries that capture the essential information while maintaining clarity and readability. Always respond in English.`
+      },
+      {
+        role: 'user',
+        content: `Please create a comprehensive summary of this webpage content:
+
+**Requirements:**
+- Capture the main points and essential information
+- Organize information logically with clear structure
+- Include important details, facts, or data mentioned
+- Keep it concise but comprehensive
+- Use bullet points or numbered lists where appropriate
+
+**WEBPAGE CONTENT:**
+${pageContent}`
+      }
+    ];
+
+    const rawResponse = await this.makeRequest(messages);
+    return this.formatResponse(rawResponse);
+  }
+
+  /**
+   * Extract key insights from webpage content with specialized prompt
+   */
+  async extractKeyInsights(pageContent) {
+    const messages = [
+      {
+        role: 'system',
+        content: `You are an expert analyst specializing in extracting actionable insights and key takeaways from content. Focus on the most valuable and practical information. Always respond in English.`
+      },
+      {
+        role: 'user',
+        content: `Please extract the key insights and takeaways from this webpage:
+
+**Focus on:**
+- Most important conclusions or findings
+- Actionable advice or recommendations
+- Critical data points or statistics
+- Key lessons or principles
+- Notable trends or patterns
+- Practical applications or implications
+
+**Format as:**
+- Clear, concise bullet points
+- Prioritize by importance
+- Include context where necessary
+- Highlight actionable items
+
+**WEBPAGE CONTENT:**
+${pageContent}`
+      }
+    ];
+
+    const rawResponse = await this.makeRequest(messages);
+    return this.formatResponse(rawResponse);
   }
 
   /**
@@ -212,7 +306,7 @@ ${text}`
     ];
 
     const response = await this.makeRequest(messages, { maxTokens: 600 });
-    
+
     try {
       const parsed = JSON.parse(response.trim());
       return {
