@@ -23,10 +23,10 @@
 
                 </div>
                 <div class="header-actions">
-                    <button class="terminal-btn" id="refresh-btn" title="New conversation">
+                    <button class="terminal-btn" id="refresh-btn" title="New conversation" aria-label="New conversation">
                         <i class="fas fa-refresh"></i>
                     </button>
-                    <button class="terminal-btn" id="settings-btn" title="Settings">
+                    <button class="terminal-btn" id="settings-btn" title="Settings" aria-label="Settings">
                         <i class="fas fa-cog"></i>
                     </button>
                 </div>
@@ -43,7 +43,7 @@
 
         <!-- Modern Chat Container -->
         <main class="chat-container">
-            <div class="chat-messages" id="chat-messages">
+            <div class="chat-messages" id="chat-messages" role="log" aria-live="polite">
                 <!-- Welcome message will be inserted here -->
             </div>
         </main>
@@ -57,10 +57,11 @@
                         class="message-input"
                         placeholder="Message Nation Assistant..."
                         rows="1"
-                        maxlength="4000"
+                        maxlength="8000"
+                        aria-label="Chat input"
                     ></textarea>
                     <div class="input-actions">
-                        <button id="send-btn" class="send-button" disabled>
+                        <button id="send-btn" class="send-button" disabled aria-label="Send message">
                             <i class="fas fa-arrow-up"></i>
                         </button>
                     </div>
@@ -74,7 +75,47 @@
 
     </div>
 
+    <!-- Templates for dynamic content -->
+    <template id="welcome-message-template">
+        <div class="welcome-message">
+            <div class="welcome-icon"><i class="fas fa-robot"></i></div>
+            <div class="welcome-title">Welcome to Nation Assistant</div>
+            <div class="welcome-subtitle">
+              I can help you understand and analyze this webpage. Here are some things you can try:
+            </div>
+            <div class="welcome-suggestions">
+              <button class="suggestion-btn" data-action="analyze">
+                📄 Analyze this page
+              </button>
+              <button class="suggestion-btn" data-action="summarize">
+                📝 Summarize content
+              </button>
+              <button class="suggestion-btn" data-action="key-insights">
+                💡 Key insights
+              </button>
+            </div>
+            <div class="welcome-tip">
+              💡 <strong>Tip:</strong> Select text on any page and right-click to analyze it directly!
+            </div>
+        </div>
+    </template>
+
+    <template id="error-message-template">
+        <div class="message system">
+            <div class="error-message">
+                <div class="error-header">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span class="error-title"></span>
+                </div>
+                <div class="error-content"></div>
+                <div class="error-actions"></div>
+            </div>
+        </div>
+    </template>
+
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
     <script src="debug-config.js"></script>
     <script src="sidepanel.js"></script>
 </body>

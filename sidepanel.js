@@ -28,11 +28,13 @@ function formatAIResponse(content) {
     return '<div class="ai-error">Invalid response content</div>';
   }
 
-  // Just escape HTML and preserve line breaks - that's it!
-  const escaped = escapeHtml(content);
-  const withBreaks = escaped.replace(/\n/g, '<br>');
+  // 1. Parse the Markdown content using marked.js
+  const dirtyHtml = marked.parse(content);
 
-  return withBreaks;
+  // 2. Sanitize the HTML using DOMPurify to prevent XSS attacks
+  const cleanHtml = DOMPurify.sanitize(dirtyHtml);
+
+  return cleanHtml;
 }
 
 // formatting functions removed - using simple approach
@@ -509,81 +511,49 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
 }
 
 function showError(message, context = {}) {
-  console.log('Showing error dialog:', { message, context });
+  const template = document.getElementById('error-message-template');
+  if (!template) return;
 
-  const errorEl = document.createElement('div');
-  errorEl.classList.add('message', 'system');
+  const errorEl = template.content.cloneNode(true);
+  const errorTitleEl = errorEl.querySelector('.error-title');
+  const errorContentEl = errorEl.querySelector('.error-content');
+  const errorActionsEl = errorEl.querySelector('.error-actions');
 
-  // Provide more specific error guidance
   let errorTitle = 'Something went wrong';
-  let actionButtons = '';
+  let actionButtonsHtml = '';
 
   if (context.apiKey || message.includes('API key') || message.includes('401')) {
     errorTitle = 'API Configuration Issue';
-    actionButtons = `
-      <button class="error-action-btn" data-action="configure-api">
-        <i class="fas fa-cog"></i> Configure API Key
-      </button>
-    `;
+    actionButtonsHtml = `<button class="error-action-btn" data-action="configure-api"><i class="fas fa-cog"></i> Configure API Key</button>`;
   } else if (context.connection || message.includes('fetch') || message.includes('network')) {
     errorTitle = 'Connection Problem';
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry">
-        <i class="fas fa-redo"></i> Retry
-      </button>
-      <button class="error-action-btn" data-action="refresh">
-        <i class="fas fa-refresh"></i> Refresh
-      </button>
+    actionButtonsHtml = `
+      <button class="error-action-btn" data-action="retry"><i class="fas fa-redo"></i> Retry</button>
+      <button class="error-action-btn" data-action="refresh"><i class="fas fa-refresh"></i> Refresh</button>
     `;
   } else if (message.includes('rate limit') || message.includes('429')) {
     errorTitle = 'Rate Limit Reached';
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry-delayed">
-        <i class="fas fa-clock"></i> Retry in 5s
-      </button>
-    `;
+    actionButtonsHtml = `<button class="error-action-btn" data-action="retry-delayed"><i class="fas fa-clock"></i> Retry in 5s</button>`;
   } else {
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry">
-        <i class="fas fa-redo"></i> Try Again
-      </button>
-    `;
+    actionButtonsHtml = `<button class="error-action-btn" data-action="retry"><i class="fas fa-redo"></i> Try Again</button>`;
   }
 
-  const errorContent = `
-    <div class="error-message">
-      <div class="error-header">
-        <i class="fas fa-exclamation-triangle"></i>
-        ${errorTitle}
-      </div>
-      <div class="error-content">${escapeHtml(message)}</div>
-      <div class="error-actions">
-        ${actionButtons}
-      </div>
-    </div>
-  `;
+  errorTitleEl.textContent = errorTitle;
+  errorContentEl.textContent = message;
+  errorActionsEl.innerHTML = actionButtonsHtml;
 
-  errorEl.innerHTML = errorContent;
-
+  const messageNode = errorEl.firstElementChild;
   elements.chatMessages.appendChild(errorEl);
 
-  // Add event listeners for error action buttons after DOM insertion
-  setTimeout(() => {
-    const actionBtns = errorEl.querySelectorAll('.error-action-btn');
-    console.log('Found action buttons:', actionBtns.length);
-
-    actionBtns.forEach((btn, index) => {
-      const action = btn.dataset.action;
-      console.log(`Setting up button ${index}:`, action);
-
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Error action button clicked:', action);
-        handleErrorAction(action, errorEl);
-      });
+  // Add event listeners for the newly created action buttons
+  const actionBtns = messageNode.querySelectorAll('.error-action-btn');
+  actionBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleErrorAction(btn.dataset.action, messageNode);
     });
-  }, 100);
+  });
 
   smoothScrollToBottom();
 }
@@ -682,10 +652,10 @@ function createMessageActions(content) {
   actionsEl.classList.add('message-actions');
 
   actionsEl.innerHTML = `
-    <button class="action-btn" data-action="copy" title="Copy message">
+    <button class="action-btn" data-action="copy" title="Copy message" aria-label="Copy message">
       <i class="fas fa-copy"></i>
     </button>
-    <button class="action-btn" data-action="regenerate" title="Regenerate response">
+    <button class="action-btn" data-action="regenerate" title="Regenerate response" aria-label="Regenerate response">
       <i class="fas fa-redo"></i>
     </button>
   `;
@@ -773,29 +743,10 @@ function showWelcomeMessage() {
   const { chatMessages } = elements;
   if (!chatMessages) return;
 
-  const welcomeEl = document.createElement('div');
-  welcomeEl.classList.add('welcome-message');
-  welcomeEl.innerHTML = `
-    <div class="welcome-icon"><i class="fas fa-robot"></i></div>
-    <div class="welcome-title">Welcome to Nation Assistant</div>
-    <div class="welcome-subtitle">
-      I can help you understand and analyze this webpage. Here are some things you can try:
-    </div>
-    <div class="welcome-suggestions">
-      <button class="suggestion-btn" data-action="analyze">
-        📄 Analyze this page
-      </button>
-      <button class="suggestion-btn" data-action="summarize">
-        📝 Summarize content
-      </button>
-      <button class="suggestion-btn" data-action="key-insights">
-        💡 Key insights
-      </button>
-    </div>
-    <div class="welcome-tip">
-      💡 <strong>Tip:</strong> Select text on any page and right-click to analyze it directly!
-    </div>
-  `;
+  const template = document.getElementById('welcome-message-template');
+  if (!template) return;
+
+  const welcomeEl = template.content.cloneNode(true);
 
   // Add event listeners for suggestion buttons
   const suggestionBtns = welcomeEl.querySelectorAll('.suggestion-btn');
