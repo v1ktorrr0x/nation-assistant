@@ -21,6 +21,9 @@ build/
 *.swp
 *.swo
 
+# Kiro AI assistant files
+.kiro/
+
 # OS generated files
 .DS_Store
 .DS_Store?
