@@ -10,6 +10,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles/nation-theme.css">
     <link rel="stylesheet" href="styles/sidepanel.css">
+    
+    <!-- Reduced motion support for accessibility -->
+    <style>
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+            
+            .streaming-cursor {
+                animation: none !important;
+            }
+            
+            .enhanced-loading-spinner {
+                animation: none !important;
+            }
+            
+            .scan-lines, .terminal-glow, .matrix-rain {
+                display: none !important;
+            }
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            :root {
+                --primary-color: #00ff00;
+                --background-color: #000000;
+                --text-color: #ffffff;
+                --border-color: #ffffff;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="modern-chat-app">
@@ -25,6 +59,9 @@
                 <div class="header-actions">
                     <button class="terminal-btn" id="refresh-btn" title="New conversation">
                         <i class="fas fa-refresh"></i>
+                    </button>
+                    <button class="terminal-btn" id="help-btn" title="Help & Shortcuts (Ctrl+?)">
+                        <i class="fas fa-question-circle"></i>
                     </button>
                     <button class="terminal-btn" id="settings-btn" title="Settings">
                         <i class="fas fa-cog"></i>

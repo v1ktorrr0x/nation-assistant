@@ -1,8 +1,8 @@
 // Nation Assistant LLM Service - Crestal Network Integration
 'use strict';
 
-// Enable comprehensive logging for debugging
-const DEBUG = true;
+// Enable comprehensive logging for debugging - disable in production
+const DEBUG = false;
 const logger = {
   log: (message, ...args) => {
     if (DEBUG) console.log(`[LLMService] ${message}`, ...args);
@@ -81,8 +81,29 @@ class LLMService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`API Error: ${response.status} - ${errorData.error?.message || 'Request failed'}`);
+        // Secure error handling - don't expose sensitive data
+        let errorMessage = 'Request failed';
+        
+        try {
+          const errorData = await response.json();
+          // Only use safe error messages, avoid exposing API details
+          if (response.status === 401) {
+            errorMessage = 'Invalid API key or authentication failed';
+          } else if (response.status === 429) {
+            errorMessage = 'Rate limit exceeded. Please try again later';
+          } else if (response.status === 403) {
+            errorMessage = 'Access forbidden. Check your API permissions';
+          } else if (response.status >= 500) {
+            errorMessage = 'Service temporarily unavailable';
+          } else if (errorData.error?.message && !this.containsSensitiveData(errorData.error.message)) {
+            errorMessage = errorData.error.message;
+          }
+        } catch (parseError) {
+          // If we can't parse the error, use generic message
+          logger.warn('Failed to parse error response');
+        }
+        
+        throw new Error(`API Error (${response.status}): ${errorMessage}`);
       }
 
       const data = await response.json();
@@ -92,8 +113,28 @@ class LLMService {
 
       return data.choices[0].message.content;
     } catch (error) {
+      // Sanitize error before re-throwing
+      if (error.message && this.containsSensitiveData(error.message)) {
+        throw new Error('API request failed. Please check your configuration.');
+      }
       throw error;
     }
+  }
+
+  /**
+   * Check if error message contains sensitive data that should not be exposed
+   */
+  containsSensitiveData(message) {
+    const sensitivePatterns = [
+      /Bearer\s+[A-Za-z0-9\-_]+/i, // Bearer tokens
+      /api[_-]?key/i, // API key references
+      /token/i, // Token references
+      /authorization/i, // Authorization headers
+      /sk-[A-Za-z0-9]+/i, // OpenAI-style keys
+      /[A-Za-z0-9]{32,}/i // Long alphanumeric strings (potential keys)
+    ];
+    
+    return sensitivePatterns.some(pattern => pattern.test(message));
   }
 
   /**

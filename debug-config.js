@@ -2,7 +2,7 @@
 // Set DEBUG to false to disable all logging
 
 window.NATION_DEBUG = {
-  enabled: true,
+  enabled: false,
   components: {
     sidepanel: true,
     background: true,

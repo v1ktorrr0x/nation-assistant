@@ -4,7 +4,7 @@
 import { LLMService } from './services/llm-service.js';
 
 // Enable comprehensive logging for debugging
-const DEBUG = true;
+const DEBUG = false;
 const logger = {
   log: (message, ...args) => {
     if (DEBUG) console.log(`[Background] ${message}`, ...args);
@@ -93,7 +93,7 @@ class NationAssistantBackground {
                     }
                     break;
                 default:
-                    console.log('[Background] Unknown command:', command);
+                    logger.debug('Unknown command:', command);
             }
         } catch (error) {
             console.error('[Background] Command handler error:', error);
@@ -304,41 +304,130 @@ class NationAssistantBackground {
     }
 
     /**
-     * Ensure content script is injected
+     * Ensure content script is injected with retry logic and better error handling
      */
-    async ensureContentScript(tabId) {
+    async ensureContentScript(tabId, retryCount = 0) {
+        const maxRetries = 3;
+        
         try {
+            // Check if content script is already injected
             const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
-            if (response?.pong) return;
-        } catch { }
+            if (response?.pong) return true;
+        } catch { 
+            // Content script not present, continue with injection
+        }
 
-        await chrome.scripting.executeScript({
-            target: { tabId },
-            files: ['content.js']
-        });
+        try {
+            // Get tab info to check if injection is possible
+            const tab = await chrome.tabs.get(tabId);
+            
+            // Check if tab URL supports content script injection
+            if (!tab.url || 
+                tab.url.startsWith('chrome://') || 
+                tab.url.startsWith('chrome-extension://') ||
+                tab.url.startsWith('moz-extension://') ||
+                tab.url.startsWith('edge://') ||
+                tab.url === 'about:blank') {
+                throw new Error('Content script injection not supported on this page type');
+            }
 
-        await new Promise(resolve => setTimeout(resolve, 100));
-        const verify = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
-        if (!verify?.pong) throw new Error('Content script injection failed');
+            // Inject content script
+            await chrome.scripting.executeScript({
+                target: { tabId },
+                files: ['debug-config.js', 'content.js']
+            });
+
+            // Wait for injection to complete
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // Verify injection worked
+            const verify = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+            if (verify?.pong) {
+                logger.log('Content script successfully injected for tab:', tabId);
+                return true;
+            }
+            
+            throw new Error('Content script verification failed');
+            
+        } catch (error) {
+            logger.warn(`Content script injection attempt ${retryCount + 1} failed:`, error.message);
+            
+            // Retry logic for transient failures
+            if (retryCount < maxRetries && 
+                !error.message.includes('not supported') &&
+                !error.message.includes('Cannot access')) {
+                
+                await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+                return this.ensureContentScript(tabId, retryCount + 1);
+            }
+            
+            // Final failure - provide user-friendly error
+            if (error.message.includes('not supported')) {
+                throw new Error('This page type doesn\'t support content analysis. Try a regular webpage.');
+            } else if (error.message.includes('Cannot access')) {
+                throw new Error('Cannot access this page. The website may be blocking extensions.');
+            } else {
+                throw new Error('Unable to analyze this page. Please try refreshing and try again.');
+            }
+        }
     }
 
     /**
-     * Handle chat with page
+     * Handle chat with page with enhanced error handling
      */
     async handleChatWithPage(message) {
         const { tabId, question = "", chatHistory = [] } = message;
 
-        const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
-        if (!tab) throw new Error('No active tab');
+        try {
+            const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
+            if (!tab) throw new Error('No active tab found. Please make sure you have a webpage open.');
 
-        await this.ensureContentScript(tab.id);
+            // Enhanced content script injection with user feedback
+            try {
+                await this.ensureContentScript(tab.id);
+            } catch (injectionError) {
+                // Provide specific guidance based on injection failure
+                throw new Error(`${injectionError.message}\n\nTip: Try refreshing the page or navigating to a different website.`);
+            }
 
-        const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' });
-        if (!response?.pageContent) throw new Error('No page content');
+            // Get page content with timeout
+            const contentPromise = chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' });
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Page content extraction timed out')), 10000)
+            );
+            
+            const response = await Promise.race([contentPromise, timeoutPromise]);
+            
+            if (!response?.pageContent) {
+                throw new Error('Unable to extract content from this page. The page might be empty or still loading.');
+            }
 
-        const llmResponse = await this.llmService.chatWithPage(response.pageContent, question, chatHistory);
+            if (response.pageContent.trim().length < 10) {
+                throw new Error('This page appears to have very little content to analyze. Try a different page with more text.');
+            }
 
-        return { success: true, data: { response: llmResponse } };
+            const llmResponse = await this.llmService.chatWithPage(response.pageContent, question, chatHistory);
+
+            return { success: true, data: { response: llmResponse } };
+            
+        } catch (error) {
+            logger.error('Chat with page failed:', error.message);
+            
+            // Provide user-friendly error messages
+            let userMessage = error.message;
+            
+            if (error.message.includes('Extension context invalidated')) {
+                userMessage = 'Extension needs to be reloaded. Please refresh the page and try again.';
+            } else if (error.message.includes('No active tab')) {
+                userMessage = 'No active tab found. Please make sure you have a webpage open and try again.';
+            } else if (error.message.includes('API key')) {
+                userMessage = 'API configuration issue. Please check your settings and ensure your API key is valid.';
+            } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                userMessage = 'Network connection issue. Please check your internet connection and try again.';
+            }
+            
+            return { success: false, error: userMessage };
+        }
     }
 
     /**

@@ -1,8 +1,8 @@
 // nation assistant chat sidepanel
 'use strict';
 
-// Enable comprehensive logging for debugging
-const DEBUG = true;
+// Enable comprehensive logging for debugging - disable in production
+const DEBUG = false;
 const logger = {
   log: (message, ...args) => {
     if (DEBUG) console.log(`[Sidepanel] ${message}`, ...args);
@@ -116,75 +116,98 @@ class AIResponseFormatter {
    * Only apply essential formatting while keeping the natural flow
    */
   processWithMinimalChanges(content) {
-    // process line by line but preserve original paragraph structure
     const lines = content.split('\n');
     const processedLines = [];
-    let currentParagraph = [];
+    let listStack = []; // Track nested lists
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmed = line.trim();
 
-      // Handle code blocks first (preserve exactly as is)
+      // Handle code blocks
       if (trimmed.startsWith('```')) {
-        // Finish current paragraph if any
-        if (currentParagraph.length > 0) {
-          processedLines.push(this.processParagraph(currentParagraph.join('\n')));
-          currentParagraph = [];
+        // Close all open lists
+        while (listStack.length > 0) {
+          processedLines.push('</ul>');
+          listStack.pop();
         }
-
         const codeBlockResult = this.handleCodeBlock(line, lines, i);
         processedLines.push(codeBlockResult.html);
-        i += codeBlockResult.skipLines - 1; // -1 because loop will increment
+        i += codeBlockResult.skipLines - 1;
         continue;
       }
 
-      // Skip processing if inside code block
-      if (this.parsingState.inCodeBlock) {
-        processedLines.push(this.escapeHtml(line));
-        continue;
-      }
+      // Handle bullet points with nesting
+      const bulletMatch = line.match(/^(\s*)[-*+•] (.+)$/);
+      if (bulletMatch) {
+        const indent = bulletMatch[1].length;
+        const content = this.processInlineFormatting(bulletMatch[2]);
 
-      // Handle explicit markdown elements
-      if (this.isExplicitMarkdownElement(trimmed)) {
-        // Finish current paragraph if any
-        if (currentParagraph.length > 0) {
-          processedLines.push(this.processParagraph(currentParagraph.join('\n')));
-          currentParagraph = [];
+        // Determine nesting level (every 2 spaces = 1 level)
+        const level = Math.floor(indent / 2);
+
+        // Adjust list stack to match current level
+        while (listStack.length > level + 1) {
+          processedLines.push('</ul>');
+          listStack.pop();
         }
 
-        // Process the markdown element
-        processedLines.push(this.processMarkdownElement(line));
+        // Open new list if needed
+        if (listStack.length === level) {
+          processedLines.push('<ul>');
+          listStack.push('ul');
+        }
+
+        processedLines.push(`<li>${content}</li>`);
         continue;
       }
 
-      // Handle empty lines - preserve paragraph breaks
+      // Handle headers
+      const headerMatch = trimmed.match(/^(#{1,6}) (.+)$/);
+      if (headerMatch) {
+        // Close all open lists
+        while (listStack.length > 0) {
+          processedLines.push('</ul>');
+          listStack.pop();
+        }
+        const level = headerMatch[1].length;
+        const content = this.processInlineFormatting(headerMatch[2]);
+        processedLines.push(`<h${level}>${content}</h${level}>`);
+        continue;
+      }
+
+      // Handle empty lines
       if (!trimmed) {
-        if (currentParagraph.length > 0) {
-          processedLines.push(this.processParagraph(currentParagraph.join('\n')));
-          currentParagraph = [];
+        // Close all open lists on empty line
+        while (listStack.length > 0) {
+          processedLines.push('</ul>');
+          listStack.pop();
         }
-        processedLines.push(''); // Preserve empty line
+        processedLines.push('');
         continue;
       }
 
-      // Regular content - accumulate into paragraph
-      currentParagraph.push(line);
+      // Handle regular content
+      // Close all open lists
+      while (listStack.length > 0) {
+        processedLines.push('</ul>');
+        listStack.pop();
+      }
+
+      const formatted = this.processInlineFormatting(trimmed);
+      processedLines.push(`<p>${formatted}</p>`);
     }
 
-    // Process any remaining paragraph
-    if (currentParagraph.length > 0) {
-      processedLines.push(this.processParagraph(currentParagraph.join('\n')));
-    }
-
-    // Close any open elements
-    const closingTags = this.getClosingTags();
-    if (closingTags) {
-      processedLines.push(closingTags);
+    // Close any remaining lists
+    while (listStack.length > 0) {
+      processedLines.push('</ul>');
+      listStack.pop();
     }
 
     return processedLines.join('\n');
   }
+
+
 
   /**
    * Check if a line is an explicit markdown element (starts with markdown syntax)
@@ -290,7 +313,7 @@ class AIResponseFormatter {
   }
 
   /**
-   * Process list items with minimal nesting logic
+   * Process list items with proper list grouping
    */
   processListItem(line, bulletMatch, numberMatch) {
     const isNumbered = !!numberMatch;
@@ -301,34 +324,50 @@ class AIResponseFormatter {
     const listType = isNumbered ? 'ol' : 'ul';
     let html = '';
 
-    // Simple list handling - minimal nesting
+    // Handle list opening/closing logic
     if (this.parsingState.listStack.length === 0) {
       // Starting first list
       html += `<${listType}>`;
       this.parsingState.listStack.push(listType);
       this.parsingState.currentIndent = indent;
-    } else if (indent > this.parsingState.currentIndent) {
-      // Starting nested list
-      html += `<${listType}>`;
-      this.parsingState.listStack.push(listType);
-      this.parsingState.currentIndent = indent;
-    } else if (indent < this.parsingState.currentIndent) {
-      // Closing nested lists
-      while (this.parsingState.listStack.length > 0 && indent < this.parsingState.currentIndent) {
-        const closingType = this.parsingState.listStack.pop();
-        html += `</${closingType}>`;
-        this.parsingState.currentIndent = Math.max(0, this.parsingState.currentIndent - 2);
-      }
+    } else {
+      const currentListType = this.parsingState.listStack[this.parsingState.listStack.length - 1];
 
-      // Start new list if needed
-      if (this.parsingState.listStack.length === 0) {
+      if (indent > this.parsingState.currentIndent) {
+        // Starting nested list
         html += `<${listType}>`;
         this.parsingState.listStack.push(listType);
         this.parsingState.currentIndent = indent;
+      } else if (indent < this.parsingState.currentIndent) {
+        // Closing nested lists
+        while (this.parsingState.listStack.length > 0 && indent < this.parsingState.currentIndent) {
+          const closingType = this.parsingState.listStack.pop();
+          html += `</${closingType}>`;
+          this.parsingState.currentIndent = Math.max(0, this.parsingState.currentIndent - 2);
+        }
+
+        // Start new list if needed or if list type changed
+        if (this.parsingState.listStack.length === 0 ||
+          this.parsingState.listStack[this.parsingState.listStack.length - 1] !== listType) {
+          if (this.parsingState.listStack.length > 0) {
+            const closingType = this.parsingState.listStack.pop();
+            html += `</${closingType}>`;
+          }
+          html += `<${listType}>`;
+          this.parsingState.listStack.push(listType);
+          this.parsingState.currentIndent = indent;
+        }
+      } else if (currentListType !== listType) {
+        // Same indent but different list type - close current and start new
+        const closingType = this.parsingState.listStack.pop();
+        html += `</${closingType}>`;
+        html += `<${listType}>`;
+        this.parsingState.listStack.push(listType);
       }
+      // If same indent and same type, just add the item (no opening/closing needed)
     }
 
-    // Add list item with minimal processing
+    // Add list item with inline formatting
     const processedContent = this.processInlineFormatting(content);
     html += `<li>${processedContent}</li>`;
 
@@ -355,18 +394,11 @@ class AIResponseFormatter {
   }
 
   /**
-   * Close any open elements
+   * Close any open elements - simplified
    */
   getClosingTags() {
-    let closingTags = '';
-
-    // Close any open lists
-    if (this.parsingState.listStack.length > 0) {
-      closingTags += this.parsingState.listStack.reverse().map(type => `</${type}>`).join('');
-      this.parsingState.listStack = [];
-    }
-
-    return closingTags;
+    // Not used in simplified approach
+    return '';
   }
 
   escapeHtml(text) {
@@ -391,9 +423,122 @@ function formatAIResponse(content) {
 // utility functions
 
 function escapeHtml(text) {
+  if (typeof text !== 'string') {
+    return '';
+  }
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+/**
+ * Comprehensive input validation and sanitization
+ */
+function validateAndSanitizeInput(input) {
+  if (!input || typeof input !== 'string') {
+    return { isValid: false, sanitized: '', error: 'Invalid input type' };
+  }
+
+  // Enhanced length validation with user guidance
+  const MAX_INPUT_LENGTH = 4000;
+  if (input.length > MAX_INPUT_LENGTH) {
+    const excess = input.length - MAX_INPUT_LENGTH;
+    return {
+      isValid: false,
+      sanitized: input.substring(0, MAX_INPUT_LENGTH),
+      error: `Message is ${excess} characters too long. Please shorten your message to under ${MAX_INPUT_LENGTH} characters for better AI processing.`
+    };
+  }
+
+  // Check for minimum meaningful content
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return {
+      isValid: false,
+      sanitized: trimmed,
+      error: 'Please enter a meaningful message to get a helpful response.'
+    };
+  }
+
+  // Remove potentially dangerous patterns
+  let sanitized = input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+    .replace(/javascript:/gi, '') // Remove javascript: protocols
+    .replace(/on\w+\s*=/gi, '') // Remove event handlers
+    .replace(/data:text\/html/gi, '') // Remove data URLs
+    .trim();
+
+  // Check for suspicious patterns
+  const suspiciousPatterns = [
+    /<iframe/i,
+    /<object/i,
+    /<embed/i,
+    /<link/i,
+    /<meta/i,
+    /eval\s*\(/i,
+    /Function\s*\(/i
+  ];
+
+  const hasSuspiciousContent = suspiciousPatterns.some(pattern => pattern.test(sanitized));
+
+  if (hasSuspiciousContent) {
+    return {
+      isValid: false,
+      sanitized: sanitized.replace(/[<>]/g, ''),
+      error: 'Your message contains HTML or code that could be unsafe. Please use plain text for better results.'
+    };
+  }
+
+  // Check for excessive repetition (potential spam)
+  const words = sanitized.split(/\s+/);
+  const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+  if (words.length > 10 && uniqueWords.size / words.length < 0.3) {
+    return {
+      isValid: false,
+      sanitized,
+      error: 'Your message appears to have excessive repetition. Please rephrase for better AI understanding.'
+    };
+  }
+
+  return { isValid: true, sanitized, error: null };
+}
+
+/**
+ * Sanitize HTML content for safe display
+ */
+function sanitizeHtmlContent(html) {
+  if (!html || typeof html !== 'string') {
+    return '';
+  }
+
+  // Create a temporary element to parse HTML
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+
+  // Remove dangerous elements and attributes
+  const dangerousElements = temp.querySelectorAll('script, iframe, object, embed, link[rel="stylesheet"], meta, style');
+  dangerousElements.forEach(el => el.remove());
+
+  // Remove dangerous attributes
+  const allElements = temp.querySelectorAll('*');
+  allElements.forEach(el => {
+    // Remove event handler attributes
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.startsWith('on') || attr.name === 'style') {
+        el.removeAttribute(attr.name);
+      }
+    });
+
+    // Sanitize href attributes
+    if (el.hasAttribute('href')) {
+      const href = el.getAttribute('href');
+      if (href && (href.startsWith('javascript:') || href.startsWith('data:'))) {
+        el.removeAttribute('href');
+      }
+    }
+  });
+
+  return temp.innerHTML;
 }
 
 /**
@@ -514,15 +659,117 @@ function retryLastMessage() {
     }
 
     logger.log('Retrying last message:', state.lastUserMessage);
-    
+
     // Add a small delay to ensure UI state is properly reset
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
+      state.activeTimeouts.delete(timeoutId);
       handleSendMessage(state.lastUserMessage, true);
     }, 100);
+    state.activeTimeouts.add(timeoutId);
   } catch (error) {
     logger.error('Error retrying last message:', error);
     addSystemMessage("Failed to retry message. Please try sending a new message.");
   }
+}
+
+/**
+ * Cleanup function to prevent memory leaks
+ */
+function cleanup() {
+  // Clear all active timeouts
+  state.activeTimeouts.forEach(timeoutId => {
+    clearTimeout(timeoutId);
+  });
+  state.activeTimeouts.clear();
+
+  // Clear all active intervals
+  state.activeIntervals.forEach(intervalId => {
+    clearInterval(intervalId);
+  });
+  state.activeIntervals.clear();
+
+  // Remove all tracked event listeners
+  state.eventListeners.forEach((listener, element) => {
+    if (element && typeof element.removeEventListener === 'function') {
+      element.removeEventListener(listener.event, listener.handler);
+    }
+  });
+  state.eventListeners.clear();
+
+  // Stop any active streaming
+  if (state.currentStreamingController) {
+    state.currentStreamingController();
+    state.currentStreamingController = null;
+  }
+
+  logger.log('Cleanup completed - all timeouts, intervals, and listeners cleared');
+}
+
+/**
+ * Manage storage quota to prevent exhaustion
+ */
+function manageStorageQuota() {
+  const MAX_HISTORY_SIZE = 100; // Maximum number of messages to keep
+  const MAX_MESSAGE_LENGTH = 10000; // Maximum length per message
+
+  try {
+    // Trim chat history if it exceeds maximum size
+    if (state.chatHistory.length > MAX_HISTORY_SIZE) {
+      const excessCount = state.chatHistory.length - MAX_HISTORY_SIZE;
+      state.chatHistory.splice(0, excessCount);
+      logger.log(`Trimmed ${excessCount} old messages from chat history`);
+    }
+
+    // Trim individual messages that are too long
+    state.chatHistory.forEach((message, index) => {
+      if (message.content && message.content.length > MAX_MESSAGE_LENGTH) {
+        const originalLength = message.content.length;
+        message.content = message.content.substring(0, MAX_MESSAGE_LENGTH) + '... [truncated]';
+        logger.log(`Truncated message ${index} from ${originalLength} to ${message.content.length} characters`);
+      }
+    });
+
+    // Estimate storage usage and warn if approaching limits
+    const estimatedSize = JSON.stringify(state.chatHistory).length;
+    const STORAGE_WARNING_THRESHOLD = 4 * 1024 * 1024; // 4MB warning threshold
+
+    if (estimatedSize > STORAGE_WARNING_THRESHOLD) {
+      logger.warn(`Chat history approaching storage limit: ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`);
+      // Could show user warning here if needed
+    }
+
+  } catch (error) {
+    logger.error('Error managing storage quota:', error);
+  }
+}
+
+/**
+ * Enhanced timeout wrapper that tracks timeouts for cleanup
+ */
+function safeSetTimeout(callback, delay) {
+  const timeoutId = setTimeout(() => {
+    state.activeTimeouts.delete(timeoutId);
+    callback();
+  }, delay);
+  state.activeTimeouts.add(timeoutId);
+  return timeoutId;
+}
+
+/**
+ * Enhanced interval wrapper that tracks intervals for cleanup
+ */
+function safeSetInterval(callback, delay) {
+  const intervalId = setInterval(callback, delay);
+  state.activeIntervals.add(intervalId);
+  return intervalId;
+}
+
+/**
+ * Enhanced event listener wrapper that tracks listeners for cleanup
+ */
+function safeAddEventListener(element, event, handler, options) {
+  element.addEventListener(event, handler, options);
+  state.eventListeners.set(element, { event, handler });
 }
 
 
@@ -546,13 +793,104 @@ let state = {
   isProcessing: false,
   currentTabId: null,
   currentStreamingController: null,
-  lastUserMessage: null
+  lastUserMessage: null,
+  activeTimeouts: new Set(), // Track active timeouts for cleanup
+  activeIntervals: new Set(), // Track active intervals for cleanup
+  eventListeners: new Map(), // Track event listeners for cleanup
+  // Add state validation tracking
+  lastStateUpdate: Date.now(),
+  stateVersion: 1
 };
+
+/**
+ * Validate and sanitize application state
+ */
+function validateState() {
+  // Ensure chatHistory is an array and not too large
+  if (!Array.isArray(state.chatHistory)) {
+    logger.warn('Invalid chatHistory detected, resetting');
+    state.chatHistory = [];
+  }
+
+  // Limit chat history size for memory management
+  if (state.chatHistory.length > 100) {
+    logger.log('Trimming chat history for memory management');
+    state.chatHistory = state.chatHistory.slice(-50); // Keep last 50 messages
+  }
+
+  // Validate processing state
+  if (typeof state.isProcessing !== 'boolean') {
+    logger.warn('Invalid isProcessing state, resetting to false');
+    state.isProcessing = false;
+  }
+
+  // Validate tab ID
+  if (state.currentTabId !== null && typeof state.currentTabId !== 'number') {
+    logger.warn('Invalid currentTabId, resetting');
+    state.currentTabId = null;
+  }
+
+  // Clean up stale timeouts and intervals
+  cleanupStaleResources();
+
+  // Update state metadata
+  state.lastStateUpdate = Date.now();
+  state.stateVersion++;
+
+  return true;
+}
+
+/**
+ * Safe state update with validation
+ */
+function updateState(updates) {
+  try {
+    Object.assign(state, updates);
+    validateState();
+    logger.debug('State updated successfully', updates);
+  } catch (error) {
+    logger.error('State update failed:', error);
+    // Restore to safe state if update fails
+    state.isProcessing = false;
+  }
+}
+
+/**
+ * Clean up stale resources to prevent memory leaks
+ */
+function cleanupStaleResources() {
+  // Clear any stale timeouts
+  state.activeTimeouts.forEach(timeoutId => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
+  state.activeTimeouts.clear();
+
+  // Clear any stale intervals
+  state.activeIntervals.forEach(intervalId => {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+  });
+  state.activeIntervals.clear();
+
+  // Clean up event listeners that are no longer needed
+  state.eventListeners.forEach((cleanup, element) => {
+    if (!document.contains(element)) {
+      cleanup();
+      state.eventListeners.delete(element);
+    }
+  });
+}
 
 // application functions
 
 async function init() {
   try {
+    // Validate initial state
+    validateState();
+
     setupEventListeners();
     await loadCurrentTab();
     await handleContextAction();
@@ -567,6 +905,16 @@ async function init() {
     // Focus input and disable send button initially
     setTimeout(() => elements.chatInput?.focus(), 200);
     if (elements.sendBtn) elements.sendBtn.disabled = true;
+
+    // Set up periodic state validation (every 30 seconds)
+    const validationInterval = setInterval(() => {
+      validateState();
+    }, 30000);
+
+    // Track the interval for cleanup
+    state.activeIntervals.add(validationInterval);
+
+    logger.log('Application initialized successfully');
 
   } catch (error) {
     console.error('Initialization error:', error);
@@ -590,6 +938,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     tabTitle: document.getElementById('tab-title'),
     tabUrl: document.getElementById('tab-url'),
     refreshBtn: document.getElementById('refresh-btn'),
+    helpBtn: document.getElementById('help-btn'),
     settingsBtn: document.getElementById('settings-btn'),
     inputContainer: document.getElementById('input-container')
   };
@@ -598,8 +947,83 @@ document.addEventListener('DOMContentLoaded', async () => {
   await init();
 });
 
+// Cleanup on page unload to prevent memory leaks
+window.addEventListener('beforeunload', () => {
+  cleanup();
+});
+
+// Cleanup on visibility change (when sidepanel is hidden)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Pause streaming animations when hidden to save resources
+    pauseStreamingAnimations();
+  } else {
+    // Resume when visible again
+    resumeStreamingAnimations();
+  }
+});
+
+/**
+ * Comprehensive cleanup function to prevent memory leaks
+ */
+function cleanup() {
+  // Stop all streaming controllers
+  if (state.currentStreamingController) {
+    state.currentStreamingController();
+    state.currentStreamingController = null;
+  }
+
+  // Clean up all message elements with streaming controllers
+  const messageElements = document.querySelectorAll('.message-content');
+  messageElements.forEach(element => {
+    if (element.streamingController) {
+      element.streamingController();
+      element.streamingController = null;
+    }
+  });
+
+  // Use the enhanced cleanup system
+  cleanupStaleResources();
+
+  // Reset processing state safely
+  updateState({ isProcessing: false });
+
+  logger.log('Cleanup completed');
+}
+
+/**
+ * Pause streaming animations to save resources
+ */
+function pauseStreamingAnimations() {
+  const streamingElements = document.querySelectorAll('.streaming');
+  streamingElements.forEach(element => {
+    if (element.streamingController) {
+      element.dataset.wasPaused = 'true';
+      element.streamingController();
+    }
+  });
+}
+
+/**
+ * Resume streaming animations when visible
+ */
+function resumeStreamingAnimations() {
+  // Note: This is a placeholder - actual resume logic would need
+  // to store streaming state and resume from where it left off
+  logger.log('Resuming streaming animations');
+}
+
+/**
+ * Clear all pending timeouts (placeholder for timeout tracking)
+ */
+function clearAllTimeouts() {
+  // In a more complete implementation, we would track all timeout IDs
+  // and clear them here
+  logger.log('Clearing all timeouts');
+}
+
 function setupEventListeners() {
-  const { chatInput, sendBtn, refreshBtn, settingsBtn, inputContainer } = elements;
+  const { chatInput, sendBtn, refreshBtn, helpBtn, settingsBtn, inputContainer } = elements;
 
   // Chat input events
   chatInput?.addEventListener('input', handleInputChange);
@@ -609,6 +1033,7 @@ function setupEventListeners() {
   // Button events
   sendBtn?.addEventListener('click', handleSendMessage);
   refreshBtn?.addEventListener('click', handleRefresh);
+  helpBtn?.addEventListener('click', showHelpDialog);
   settingsBtn?.addEventListener('click', () => chrome.runtime.openOptionsPage());
 
   // Input container focus
@@ -668,7 +1093,7 @@ function handleKeyDown(e) {
       handleInputChange();
     }
   } else if (e.ctrlKey || e.metaKey) {
-    // Keyboard shortcuts
+    // Enhanced keyboard shortcuts
     if (e.key === 'k') {
       e.preventDefault();
       elements.chatInput?.focus();
@@ -677,8 +1102,72 @@ function handleKeyDown(e) {
       if (state.lastUserMessage && !state.isProcessing) {
         retryLastMessage();
       }
+    } else if (e.key === 'n') {
+      e.preventDefault();
+      handleRefresh();
+    } else if (e.key === ',') {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
+    } else if (e.key === '?' || e.key === '/') {
+      e.preventDefault();
+      showHelpDialog();
+    }
+  } else if (e.key === 'ArrowUp' && e.altKey) {
+    // Navigate to previous message
+    e.preventDefault();
+    navigateMessages('up');
+  } else if (e.key === 'ArrowDown' && e.altKey) {
+    // Navigate to next message
+    e.preventDefault();
+    navigateMessages('down');
+  } else if (e.key === 'Tab') {
+    // Improve tab navigation
+    const focusableElements = document.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+
+    if (focusableElements.length > 0) {
+      const currentIndex = Array.from(focusableElements).indexOf(document.activeElement);
+      let nextIndex;
+
+      if (e.shiftKey) {
+        nextIndex = currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1;
+      } else {
+        nextIndex = currentIndex >= focusableElements.length - 1 ? 0 : currentIndex + 1;
+      }
+
+      focusableElements[nextIndex].focus();
+      e.preventDefault();
     }
   }
+}
+
+/**
+ * Navigate between messages with keyboard
+ */
+function navigateMessages(direction) {
+  const messages = document.querySelectorAll('.message');
+  if (messages.length === 0) return;
+
+  const currentFocused = document.activeElement;
+  let currentIndex = -1;
+
+  // Find currently focused message
+  messages.forEach((msg, index) => {
+    if (msg.contains(currentFocused) || msg === currentFocused) {
+      currentIndex = index;
+    }
+  });
+
+  let nextIndex;
+  if (direction === 'up') {
+    nextIndex = currentIndex <= 0 ? messages.length - 1 : currentIndex - 1;
+  } else {
+    nextIndex = currentIndex >= messages.length - 1 ? 0 : currentIndex + 1;
+  }
+
+  messages[nextIndex].focus();
+  messages[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function handleRefresh() {
@@ -720,28 +1209,44 @@ async function handleRefresh() {
 async function handleSendMessage(messageText = null, isRegenerate = false) {
   const { chatInput } = elements;
   const message = messageText || chatInput?.value.trim();
-  
+
   logger.log('handleSendMessage called:', { messageText, isRegenerate, message, isProcessing: state.isProcessing });
-  
+
+  // Enhanced race condition protection
   if (!message || state.isProcessing) {
     logger.warn('Message send blocked:', { hasMessage: !!message, isProcessing: state.isProcessing });
     return;
   }
 
-  // Validate message length
-  if (message.length > 4000) {
-    showError('Message is too long. Please keep it under 4000 characters.', {});
+  // Immediately set processing state to prevent race conditions
+  state.isProcessing = true;
+
+  // Additional safety check after state change
+  if (!message.trim()) {
+    state.isProcessing = false;
+    logger.warn('Empty message after processing state set');
     return;
   }
 
-  // Store message for retry functionality (always store, even when regenerating)
-  state.lastUserMessage = message;
-  logger.log('Stored last user message for retry:', message);
+  // Comprehensive input validation
+  const validation = validateAndSanitizeInput(message);
+  if (!validation.isValid) {
+    state.isProcessing = false; // Reset processing state
+    showError(validation.error, {});
+    return;
+  }
+
+  // Use sanitized message
+  const sanitizedMessage = validation.sanitized;
+
+  // Store sanitized message for retry functionality (always store, even when regenerating)
+  state.lastUserMessage = sanitizedMessage;
+  logger.log('Stored last user message for retry:', sanitizedMessage);
 
   // Add user message (skip if regenerating)
   let userMessageEl = null;
   if (!isRegenerate) {
-    userMessageEl = addMessage(message, "user");
+    userMessageEl = addMessage(sanitizedMessage, "user");
     if (chatInput) {
       chatInput.value = "";
       handleInputChange();
@@ -767,7 +1272,7 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
     const response = await chrome.runtime.sendMessage({
       type: 'chatWithPage',
       tabId: state.currentTabId,
-      question: message,
+      question: sanitizedMessage,
       chatHistory: state.chatHistory.slice(-4).map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.content
@@ -784,26 +1289,41 @@ async function handleSendMessage(messageText = null, isRegenerate = false) {
   } catch (error) {
     hideTypingIndicator();
 
-    // Update connection status based on error type
-    if (error.message.includes('fetch') || error.message.includes('network')) {
-      updateConnectionStatus('disconnected');
-    } else if (error.message.includes('API key') || error.message.includes('401')) {
-      updateConnectionStatus('error');
-    }
+    // Connection status monitoring removed for cleaner UI
 
     showError(error.message, {
       apiKey: error.message.includes('API key') || error.message.includes('401'),
       connection: error.message.includes('fetch') || error.message.includes('network') || error.message.includes('Failed to fetch')
     });
   } finally {
-    userMessageEl?.classList.remove('loading');
-    setProcessing(false);
-    chatInput?.focus();
+    // Comprehensive cleanup in finally block
+    try {
+      userMessageEl?.classList.remove('loading');
+
+      // Always reset processing state
+      state.isProcessing = false;
+      setProcessing(false);
+
+      // Re-enable input and focus
+      if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.focus();
+      }
+
+      // Update input validation to reflect current state
+      handleInputChange();
+
+      logger.log('Message processing cleanup completed');
+    } catch (cleanupError) {
+      logger.error('Error during message processing cleanup:', cleanupError);
+      // Force reset even if cleanup fails
+      state.isProcessing = false;
+    }
   }
 }
 
 function showError(message, context = {}) {
-  console.log('Showing error dialog:', { message, context });
+  logger.debug('Showing error dialog:', { message, context });
 
   const errorEl = document.createElement('div');
   errorEl.classList.add('message', 'system');
@@ -864,16 +1384,16 @@ function showError(message, context = {}) {
   // Add event listeners for error action buttons after DOM insertion
   setTimeout(() => {
     const actionBtns = errorEl.querySelectorAll('.error-action-btn');
-    console.log('Found action buttons:', actionBtns.length);
+    logger.debug('Found action buttons:', actionBtns.length);
 
     actionBtns.forEach((btn, index) => {
       const action = btn.dataset.action;
-      console.log(`Setting up button ${index}:`, action);
+      logger.debug(`Setting up button ${index}:`, action);
 
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Error action button clicked:', action);
+        logger.debug('Error action button clicked:', action);
         handleErrorAction(action, errorEl);
       });
     });
@@ -889,13 +1409,20 @@ function addMessage(content, sender, save = true) {
   // Remove welcome message
   chatMessages.querySelector('.welcome-message')?.remove();
 
-  // Create message structure
+  // Create message structure with accessibility improvements
   const messageEl = document.createElement('div');
   messageEl.classList.add('message', sender);
+
+  // Add accessibility attributes
+  messageEl.setAttribute('role', 'article');
+  messageEl.setAttribute('aria-label', `${sender === 'user' ? 'Your message' : 'AI response'} at ${formatTime()}`);
+  messageEl.setAttribute('tabindex', '0');
 
   const messageHeader = createMessageHeader(sender);
   const messageContent = document.createElement('div');
   messageContent.classList.add('message-content');
+  messageContent.setAttribute('role', 'main');
+  messageContent.setAttribute('aria-live', sender === 'ai' ? 'polite' : 'off');
 
   messageEl.appendChild(messageHeader);
   messageEl.appendChild(messageContent);
@@ -933,9 +1460,13 @@ function addMessage(content, sender, save = true) {
 
   smoothScrollToBottom();
 
-  // Save to history
+  // Save to history with quota management
   if (save) {
-    state.chatHistory.push({ content, sender, timestamp: new Date() });
+    const newMessage = { content, sender, timestamp: new Date() };
+    state.chatHistory.push(newMessage);
+
+    // Implement storage quota management
+    manageStorageQuota();
   }
 
   return messageEl;
@@ -1096,12 +1627,18 @@ function showWelcomeMessage() {
 }
 
 /**
- * Enhanced streaming animation for AI responses - inspired by AI sidebar
+ * Enhanced streaming animation for AI responses with proper cleanup
  * Maintains structure during streaming while providing smooth animation
  */
 function startTypingEffect(element, finalContent) {
-  // Clear any existing content
+  // Clear any existing content and cleanup previous streaming
   element.innerHTML = '';
+
+  // Stop any existing streaming controller for this element
+  if (element.streamingController) {
+    element.streamingController();
+    element.streamingController = null;
+  }
 
   // Create a temporary container to parse the HTML
   const tempDiv = document.createElement('div');
@@ -1111,7 +1648,12 @@ function startTypingEffect(element, finalContent) {
   const streamableContent = extractStreamableContent(tempDiv);
 
   // Start the enhanced streaming animation and return the controller
-  return streamContentWithStructure(element, streamableContent);
+  const controller = streamContentWithStructure(element, streamableContent);
+
+  // Store controller on element for cleanup
+  element.streamingController = controller;
+
+  return controller;
 }
 
 /**
@@ -1141,9 +1683,9 @@ function streamContentWithStructure(element, streamableContent) {
   const handleClick = () => {
     clickCount++;
 
-    if (clickTimer) clearTimeout(clickTimer);
+    if (clickTimeoutId) clearTimeout(clickTimeoutId);
 
-    clickTimer = setTimeout(() => {
+    clickTimeoutId = setTimeout(() => {
       if (clickCount === 1) {
         // Single click - speed up
         speedMultiplier = Math.min(speedMultiplier * 2, 8);
@@ -1154,6 +1696,7 @@ function streamContentWithStructure(element, streamableContent) {
         showSpeedIndicator('Instant');
       }
       clickCount = 0;
+      clickTimeoutId = null;
     }, 300);
   };
 
@@ -1171,14 +1714,14 @@ function streamContentWithStructure(element, streamableContent) {
     }, 1500);
   };
 
+  // Store timeout IDs for proper cleanup
+  let streamTimeoutId = null;
+  let clickTimeoutId = null;
+
   const streamNext = () => {
     if (!isStreaming || currentIndex >= streamableContent.length) {
-      // Streaming complete
-      cursor.remove();
-      element.classList.remove('streaming');
-      element.removeEventListener('click', handleClick);
-      // Final scroll to ensure we're at the bottom
-      smoothScrollToBottom();
+      // Streaming complete - proper cleanup
+      cleanupStreaming();
       return;
     }
 
@@ -1192,10 +1735,7 @@ function streamContentWithStructure(element, streamableContent) {
         processStreamItem(currentItem);
         currentIndex++;
       }
-      cursor.remove();
-      element.removeEventListener('click', handleClick);
-      // Final scroll after instant completion
-      smoothScrollToBottom();
+      cleanupStreaming();
       return;
     }
 
@@ -1205,7 +1745,40 @@ function streamContentWithStructure(element, streamableContent) {
     // Calculate next delay based on content type and speed
     let delay = calculateDelay(item) / speedMultiplier;
 
-    setTimeout(streamNext, delay);
+    // Store timeout ID for cleanup
+    streamTimeoutId = setTimeout(streamNext, delay);
+  };
+
+  const cleanupStreaming = () => {
+    // Clear all timeouts
+    if (streamTimeoutId) {
+      clearTimeout(streamTimeoutId);
+      streamTimeoutId = null;
+    }
+    if (clickTimeoutId) {
+      clearTimeout(clickTimeoutId);
+      clickTimeoutId = null;
+    }
+
+    // Remove cursor safely
+    if (cursor && cursor.parentNode) {
+      cursor.remove();
+    }
+
+    // Remove event listeners
+    element.removeEventListener('click', handleClick);
+
+    // Clear streaming state
+    element.classList.remove('streaming');
+    isStreaming = false;
+
+    // Clear controller reference
+    if (element.streamingController) {
+      element.streamingController = null;
+    }
+
+    // Final scroll to ensure we're at the bottom
+    smoothScrollToBottom();
   };
 
   const processStreamItem = (item) => {
@@ -1286,11 +1859,10 @@ function streamContentWithStructure(element, streamableContent) {
   // Start streaming
   streamNext();
 
-  // Return controller function
+  // Return enhanced controller function with proper cleanup
   return () => {
     isStreaming = false;
-    cursor.remove();
-    element.removeEventListener('click', handleClick);
+    cleanupStreaming();
   };
 }
 
@@ -1819,8 +2391,6 @@ function showTypingIndicator(statusText = 'THINKING...', stage = 'thinking') {
 
   chatMessages.appendChild(typingEl);
   smoothScrollToBottom();
-
-
 }
 
 function hideTypingIndicator() {
@@ -1878,147 +2448,129 @@ function detectErrorType(message) {
   return 'generic';
 }
 
-function showError(message, context = {}) {
-  console.log('Showing error dialog:', { message, context });
-
-  const errorEl = document.createElement('div');
-  errorEl.classList.add('message', 'system');
-
-  // Provide more specific error guidance
-  let errorTitle = 'Something went wrong';
-  let actionButtons = '';
-
-  if (context.apiKey || message.includes('API key') || message.includes('401')) {
-    errorTitle = 'API Configuration Issue';
-    actionButtons = `
-      <button class="error-action-btn" data-action="configure-api">
-        <i class="fas fa-cog"></i> Configure API Key
-      </button>
-    `;
-  } else if (context.connection || message.includes('fetch') || message.includes('network')) {
-    errorTitle = 'Connection Problem';
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry">
-        <i class="fas fa-redo"></i> Retry
-      </button>
-      <button class="error-action-btn" data-action="refresh">
-        <i class="fas fa-refresh"></i> Refresh
-      </button>
-    `;
-  } else if (message.includes('rate limit') || message.includes('429')) {
-    errorTitle = 'Rate Limit Reached';
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry-delayed">
-        <i class="fas fa-clock"></i> Retry in 5s
-      </button>
-    `;
-  } else {
-    actionButtons = `
-      <button class="error-action-btn" data-action="retry">
-        <i class="fas fa-redo"></i> Try Again
-      </button>
-    `;
-  }
-
-  const errorContent = `
-    <div class="error-message">
-      <div class="error-header">
-        <i class="fas fa-exclamation-triangle"></i>
-        ${errorTitle}
-      </div>
-      <div class="error-content">${escapeHtml(message)}</div>
-      <div class="error-actions">
-        ${actionButtons}
-      </div>
-    </div>
-  `;
-
-  errorEl.innerHTML = errorContent;
-
-  elements.chatMessages.appendChild(errorEl);
-
-  // Add event listeners for error action buttons after DOM insertion
-  setTimeout(() => {
-    const actionBtns = errorEl.querySelectorAll('.error-action-btn');
-    console.log('Found action buttons:', actionBtns.length);
-
-    actionBtns.forEach((btn, index) => {
-      const action = btn.dataset.action;
-      console.log(`Setting up button ${index}:`, action);
-
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Error action button clicked:', action);
-        handleErrorAction(action, errorEl);
-      });
-    });
-  }, 100);
-
-  smoothScrollToBottom();
-}
-
 function handleErrorAction(action, errorEl) {
   try {
     switch (action) {
       case 'configure-api':
         chrome.runtime.openOptionsPage();
-        break;
-      case 'retry':
-        // Remove error dialog immediately when retry is clicked
-        if (errorEl && errorEl.parentNode) {
-          errorEl.remove();
-        }
-        // Ensure processing state is reset before retry
-        setProcessing(false);
-        retryLastMessage();
-        break;
-      case 'refresh':
-        location.reload();
-        break;
-      case 'retry-delayed':
-        // Show countdown feedback
-        const btn = errorEl.querySelector(`[data-action="${action}"]`);
-        if (btn) {
-          btn.disabled = true;
-          let countdown = 5;
-          btn.innerHTML = `<i class="fas fa-clock"></i> Retry in ${countdown}s`;
+        // Show feedback that settings are opening
+        if (errorEl) {
+          const feedback = document.createElement('div');
+          feedback.className = 'action-feedback';
+          feedback.innerHTML = '<i class="fas fa-external-link-alt"></i> Opening settings...';
+          errorEl.appendChild(feedback);
 
-          const countdownInterval = setInterval(() => {
-            countdown--;
-            if (countdown > 0) {
-              btn.innerHTML = `<i class="fas fa-clock"></i> Retry in ${countdown}s`;
-            } else {
-              clearInterval(countdownInterval);
-              if (errorEl && errorEl.parentNode) {
-                errorEl.remove();
-              }
-              // Ensure processing state is reset before retry
-              setProcessing(false);
-              retryLastMessage();
-            }
-          }, 1000);
-        } else {
-          // Fallback if button not found
           setTimeout(() => {
             if (errorEl && errorEl.parentNode) {
               errorEl.remove();
             }
-            // Ensure processing state is reset before retry
-            setProcessing(false);
-            retryLastMessage();
-          }, 5000);
+          }, 2000);
         }
         break;
+
+      case 'retry':
+        // Provide immediate feedback
+        if (errorEl) {
+          const btn = errorEl.querySelector(`[data-action="${action}"]`);
+          if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrying...';
+            btn.disabled = true;
+          }
+        }
+
+        // Remove error dialog after brief delay
+        setTimeout(() => {
+          if (errorEl && errorEl.parentNode) {
+            errorEl.remove();
+          }
+        }, 500);
+
+        // Ensure clean state before retry
+        updateState({ isProcessing: false });
+        retryLastMessage();
+        break;
+
+      case 'refresh':
+        // Show feedback before refresh
+        if (errorEl) {
+          const btn = errorEl.querySelector(`[data-action="${action}"]`);
+          if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            btn.disabled = true;
+          }
+        }
+
+        setTimeout(() => {
+          location.reload();
+        }, 500);
+        break;
+
+      case 'retry-delayed':
+        // Enhanced countdown with better UX
+        const btn = errorEl.querySelector(`[data-action="${action}"]`);
+        if (btn) {
+          btn.disabled = true;
+          let countdown = 5;
+
+          const updateCountdown = () => {
+            btn.innerHTML = `<i class="fas fa-clock"></i> Retry in ${countdown}s`;
+            btn.style.background = `linear-gradient(90deg, rgba(208, 255, 22, 0.1) ${((5 - countdown) / 5) * 100}%, transparent ${((5 - countdown) / 5) * 100}%)`;
+          };
+
+          updateCountdown();
+
+          const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+              updateCountdown();
+            } else {
+              clearInterval(countdownInterval);
+
+              // Clean transition to retry
+              btn.innerHTML = '<i class="fas fa-redo"></i> Retrying...';
+              btn.style.background = 'rgba(208, 255, 22, 0.2)';
+
+              setTimeout(() => {
+                if (errorEl && errorEl.parentNode) {
+                  errorEl.remove();
+                }
+                updateState({ isProcessing: false });
+                retryLastMessage();
+              }, 300);
+            }
+          }, 1000);
+
+          // Track interval for cleanup
+          state.activeIntervals.add(countdownInterval);
+        }
+        break;
+
       default:
-        console.warn('Unknown error action:', action);
+        logger.warn('Unknown error action:', action);
+        // Still provide feedback for unknown actions
+        if (errorEl && errorEl.parentNode) {
+          errorEl.remove();
+        }
     }
   } catch (error) {
-    console.error('Error handling action:', action, error);
-    // Fallback: just remove the error dialog
-    if (errorEl && errorEl.parentNode) {
-      errorEl.remove();
+    logger.error('Error handling action:', action, error);
+
+    // Enhanced fallback with user feedback
+    if (errorEl) {
+      const fallbackMsg = document.createElement('div');
+      fallbackMsg.className = 'error-fallback';
+      fallbackMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Action failed. Please try refreshing the page.';
+      errorEl.appendChild(fallbackMsg);
+
+      setTimeout(() => {
+        if (errorEl && errorEl.parentNode) {
+          errorEl.remove();
+        }
+      }, 3000);
     }
+
+    // Ensure clean state
+    updateState({ isProcessing: false });
   }
 }
 
@@ -2094,42 +2646,10 @@ function setProcessing(processing, statusText = 'THINKING...', stage = 'thinking
   }
 }
 
-function addConnectionStatusIndicator() {
-  const header = document.querySelector('.nation-header .header-actions');
-  if (header && !document.getElementById('connection-status')) {
-    const statusIndicator = document.createElement('div');
-    statusIndicator.id = 'connection-status';
-    statusIndicator.className = 'connection-status';
-    statusIndicator.innerHTML = '<div class="status-dot"></div>';
-    statusIndicator.title = 'Connection status';
-    header.insertBefore(statusIndicator, header.firstChild);
-  }
-}
-
-function updateConnectionStatus(status = 'connected') {
-  const indicator = document.getElementById('connection-status');
-  if (indicator) {
-    const dot = indicator.querySelector('.status-dot');
-    if (dot) {
-      dot.className = `status-dot ${status}`;
-
-      const statusMessages = {
-        connected: 'ONLINE',
-        connecting: 'CONNECTING...',
-        disconnected: 'OFFLINE',
-        error: 'ERROR'
-      };
-
-      indicator.title = statusMessages[status] || 'Unknown status';
-    }
-  }
-}
+// Connection status functions removed for cleaner UI
 
 async function loadCurrentTab() {
   try {
-    addConnectionStatusIndicator();
-    updateConnectionStatus('connected');
-
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) {
       state.currentTabId = tab.id;
@@ -2137,42 +2657,14 @@ async function loadCurrentTab() {
       const { tabTitle, tabUrl } = elements;
       if (tabTitle) tabTitle.textContent = tab.title || 'Current Page';
       if (tabUrl) tabUrl.textContent = tab.url ? new URL(tab.url).hostname : '';
-
-      // Test connection status
-      updateConnectionStatus();
     }
   } catch (error) {
     // Silently handle error
-    updateConnectionStatus(false);
+    logger.warn('Failed to load current tab:', error.message);
   }
 }
 
-async function updateConnectionStatus(forceStatus = null) {
-  const statusElement = document.querySelector('.connection-status');
-  if (!statusElement) return;
-
-  const statusDot = statusElement.querySelector('.status-dot');
-  const statusText = statusElement.querySelector('.status-text');
-
-  // Check if required elements exist
-  if (!statusDot || !statusText) return;
-
-  if (forceStatus === false) {
-    statusDot.style.background = '#ff6b6b';
-    statusText.textContent = 'Disconnected';
-    return;
-  }
-
-  try {
-    // Quick connection test
-    await chrome.runtime.sendMessage({ type: 'testConnection' });
-    statusDot.style.background = '#D0FF16';
-    statusText.textContent = 'Connected';
-  } catch (error) {
-    statusDot.style.background = '#ff6b6b';
-    statusText.textContent = 'API Error';
-  }
-}
+// Connection status testing removed for cleaner UI
 
 
 
@@ -2209,33 +2701,62 @@ async function handleContextAction() {
 
     if (!contextAction) return;
 
-    // Handle different context actions
-    switch (contextAction.action) {
-      case 'translate':
-        handleTranslateAction(contextAction);
-        break;
-      case 'analyze':
-        // Handle text analysis
-        if (contextAction.text) {
-          addSystemMessage(`Selected text: "${contextAction.text}"`);
-          addAIMessage("I can help you understand, translate, or analyze this text. What would you like to know?");
-        }
-        break;
-      default:
-        // Generic context action - handle legacy format
-        if (contextAction.text || contextAction.originalText) {
-          const text = contextAction.text || contextAction.originalText;
-          addSystemMessage(`Selected text: "${text}"`);
-          addAIMessage("I can help you understand, translate, or analyze this text. What would you like to know?");
-        }
+    // Check if context action is stale (older than 5 minutes)
+    const now = Date.now();
+    const actionAge = now - (contextAction.timestamp || 0);
+    const maxAge = 5 * 60 * 1000; // 5 minutes
+
+    if (actionAge > maxAge) {
+      logger.log('Context action expired, cleaning up');
+      chrome.storage.local.remove(['contextAction']);
+      return;
     }
 
-    // Don't clear context action here for translations - let the message handlers do it
-    if (contextAction.action !== 'translate') {
+    // Validate context action data
+    if (!contextAction.action || (!contextAction.text && !contextAction.originalText)) {
+      logger.warn('Invalid context action data, cleaning up');
+      chrome.storage.local.remove(['contextAction']);
+      return;
+    }
+
+    // Handle different context actions with enhanced error recovery
+    try {
+      switch (contextAction.action) {
+        case 'translate':
+          await handleTranslateAction(contextAction);
+          break;
+        case 'analyze':
+          // Handle text analysis
+          if (contextAction.text) {
+            addSystemMessage(`Selected text: "${contextAction.text}"`);
+            addAIMessage("I can help you understand, translate, or analyze this text. What would you like to know?");
+          }
+          break;
+        default:
+          // Generic context action - handle legacy format
+          if (contextAction.text || contextAction.originalText) {
+            const text = contextAction.text || contextAction.originalText;
+            addSystemMessage(`Selected text: "${text}"`);
+            addAIMessage("I can help you understand, translate, or analyze this text. What would you like to know?");
+          }
+      }
+
+      // Don't clear context action here for translations - let the message handlers do it
+      if (contextAction.action !== 'translate') {
+        chrome.storage.local.remove(['contextAction']);
+      }
+    } catch (actionError) {
+      logger.error('Error processing context action:', actionError);
+
+      // Show user-friendly error and clean up
+      addSystemMessage('❌ Failed to process the selected text. Please try selecting the text again.');
       chrome.storage.local.remove(['contextAction']);
     }
   } catch (error) {
-    console.error('Error handling context action:', error);
+    logger.error('Error handling context action:', error);
+
+    // Clean up on any error
+    chrome.storage.local.remove(['contextAction']).catch(() => { });
   }
 }
 
@@ -2324,3 +2845,306 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Removed complex showTranslationResult and copyTranslation functions
 // Translation now uses simple addAIMessage like any other AI response
+
+/**
+ * Show comprehensive help dialog with shortcuts and tips
+ */
+function showHelpDialog() {
+  // Remove existing help dialog if present
+  const existingDialog = document.getElementById('help-dialog');
+  if (existingDialog) {
+    existingDialog.remove();
+    return;
+  }
+
+  const helpDialog = document.createElement('div');
+  helpDialog.id = 'help-dialog';
+  helpDialog.className = 'help-dialog-overlay';
+
+  helpDialog.innerHTML = `
+    <div class="help-dialog">
+      <div class="help-header">
+        <h2><i class="fas fa-question-circle"></i> Nation Assistant Help</h2>
+        <button class="help-close" aria-label="Close help">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="help-content">
+        <div class="help-section">
+          <h3><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h3>
+          <div class="shortcut-grid">
+            <div class="shortcut-item">
+              <kbd>Enter</kbd>
+              <span>Send message</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Shift + Enter</kbd>
+              <span>New line</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Ctrl + K</kbd>
+              <span>Focus input</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Ctrl + R</kbd>
+              <span>Retry last message</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Ctrl + N</kbd>
+              <span>New conversation</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Ctrl + ,</kbd>
+              <span>Open settings</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Alt + ↑/↓</kbd>
+              <span>Navigate messages</span>
+            </div>
+            <div class="shortcut-item">
+              <kbd>Escape</kbd>
+              <span>Clear input</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <h3><i class="fas fa-mouse-pointer"></i> Interaction Tips</h3>
+          <ul class="help-tips">
+            <li><strong>Click AI responses</strong> to speed up streaming</li>
+            <li><strong>Double-click</strong> for instant completion</li>
+            <li><strong>Right-click text</strong> on any webpage for quick analysis</li>
+            <li><strong>Use action buttons</strong> to copy or regenerate responses</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3><i class="fas fa-lightbulb"></i> Best Practices</h3>
+          <ul class="help-tips">
+            <li>Be specific in your questions for better results</li>
+            <li>Ask follow-up questions to dive deeper</li>
+            <li>Use "Summarize this page" for quick overviews</li>
+            <li>Select text and right-click for targeted analysis</li>
+            <li>Keep messages under 4000 characters for optimal processing</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3><i class="fas fa-language"></i> Translation Features</h3>
+          <ul class="help-tips">
+            <li>Select text and right-click for instant translation</li>
+            <li>Use "Quick Translate" for auto-language detection</li>
+            <li>Choose specific target languages from the menu</li>
+            <li>Copy translations with the built-in copy button</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3><i class="fas fa-exclamation-triangle"></i> Troubleshooting</h3>
+          <ul class="help-tips">
+            <li><strong>No response?</strong> Check your API key in settings</li>
+            <li><strong>Slow responses?</strong> Check your internet connection</li>
+            <li><strong>Page analysis not working?</strong> Try refreshing the page</li>
+            <li><strong>Extension not loading?</strong> Restart your browser</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="help-footer">
+        <p>Press <kbd>Ctrl + ?</kbd> anytime to toggle this help dialog</p>
+      </div>
+    </div>
+  `;
+
+  // Add styles for the help dialog
+  const helpStyles = document.createElement('style');
+  helpStyles.textContent = `
+    .help-dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .help-dialog {
+      background: rgba(13, 13, 13, 0.95);
+      border: 1px solid rgba(208, 255, 22, 0.3);
+      border-radius: 12px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      font-family: 'Inter', sans-serif;
+    }
+
+    .help-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(208, 255, 22, 0.2);
+    }
+
+    .help-header h2 {
+      margin: 0;
+      color: #D0FF16;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .help-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .help-close:hover {
+      background: rgba(208, 255, 22, 0.1);
+      color: #D0FF16;
+    }
+
+    .help-content {
+      padding: 24px;
+    }
+
+    .help-section {
+      margin-bottom: 24px;
+    }
+
+    .help-section h3 {
+      color: #D0FF16;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .shortcut-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .shortcut-item kbd {
+      background: rgba(208, 255, 22, 0.2);
+      color: #D0FF16;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .help-tips {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .help-tips li {
+      padding: 8px 0;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 13px;
+      line-height: 1.4;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .help-tips li:last-child {
+      border-bottom: none;
+    }
+
+    .help-tips strong {
+      color: #D0FF16;
+    }
+
+    .help-footer {
+      padding: 16px 24px;
+      border-top: 1px solid rgba(208, 255, 22, 0.2);
+      text-align: center;
+    }
+
+    .help-footer p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+    }
+
+    .help-footer kbd {
+      background: rgba(208, 255, 22, 0.2);
+      color: #D0FF16;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .help-dialog-overlay {
+        animation: none;
+      }
+    }
+  `;
+
+  document.head.appendChild(helpStyles);
+  document.body.appendChild(helpDialog);
+
+  // Event listeners
+  const closeBtn = helpDialog.querySelector('.help-close');
+  closeBtn.addEventListener('click', () => {
+    helpDialog.remove();
+    helpStyles.remove();
+  });
+
+  // Close on overlay click
+  helpDialog.addEventListener('click', (e) => {
+    if (e.target === helpDialog) {
+      helpDialog.remove();
+      helpStyles.remove();
+    }
+  });
+
+  // Close on Escape key
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      helpDialog.remove();
+      helpStyles.remove();
+      document.removeEventListener('keydown', handleEscape);
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
+
+  // Focus management
+  closeBtn.focus();
+}
