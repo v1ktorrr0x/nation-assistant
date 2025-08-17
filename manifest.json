@@ -51,8 +51,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["styles/nation-theme.css"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "styles/nation-theme.css",
+        "content.mjs",
+        "services/constants.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "commands": {

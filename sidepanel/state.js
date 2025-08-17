@@ -1,0 +1,99 @@
+// sidepanel/state.js
+'use strict';
+
+import { logger } from './utils.js';
+
+export const state = {
+  chatHistory: [],
+  isProcessing: false,
+  currentTabId: null,
+  currentStreamingController: null,
+  lastUserMessage: null,
+  activeTimeouts: new Set(), // Track active timeouts for cleanup
+  activeIntervals: new Set(), // Track active intervals for cleanup
+  eventListeners: new Map(), // Track event listeners for cleanup
+  lastStateUpdate: Date.now(),
+  stateVersion: 1
+};
+
+/**
+ * Validate and sanitize application state
+ */
+export function validateState() {
+  // Ensure chatHistory is an array and not too large
+  if (!Array.isArray(state.chatHistory)) {
+    logger.warn('Invalid chatHistory detected, resetting');
+    state.chatHistory = [];
+  }
+
+  // Limit chat history size for memory management
+  if (state.chatHistory.length > 100) {
+    logger.log('Trimming chat history for memory management');
+    state.chatHistory = state.chatHistory.slice(-50); // Keep last 50 messages
+  }
+
+  // Validate processing state
+  if (typeof state.isProcessing !== 'boolean') {
+    logger.warn('Invalid isProcessing state, resetting to false');
+    state.isProcessing = false;
+  }
+
+  // Validate tab ID
+  if (state.currentTabId !== null && typeof state.currentTabId !== 'number') {
+    logger.warn('Invalid currentTabId, resetting');
+    state.currentTabId = null;
+  }
+
+  // Clean up stale timeouts and intervals
+  cleanupStaleResources();
+
+  // Update state metadata
+  state.lastStateUpdate = Date.now();
+  state.stateVersion++;
+
+  return true;
+}
+
+/**
+ * Safe state update with validation
+ */
+export function updateState(updates) {
+  try {
+    Object.assign(state, updates);
+    validateState();
+    logger.debug('State updated successfully', updates);
+  } catch (error) {
+    logger.error('State update failed:', error);
+    // Restore to safe state if update fails
+    state.isProcessing = false;
+  }
+}
+
+/**
+ * Clean up stale resources to prevent memory leaks
+ */
+export function cleanupStaleResources() {
+  // Clear any stale timeouts
+  state.activeTimeouts.forEach(timeoutId => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
+  state.activeTimeouts.clear();
+
+  // Clear any stale intervals
+  state.activeIntervals.forEach(intervalId => {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+  });
+  state.activeIntervals.clear();
+
+  // Clean up event listeners that are no longer needed
+  state.eventListeners.forEach((cleanup, element) => {
+    if (!document.contains(element)) {
+      cleanup();
+      state.eventListeners.delete(element);
+    }
+  });
+}

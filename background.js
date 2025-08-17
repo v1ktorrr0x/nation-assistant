@@ -2,6 +2,15 @@
 'use strict';
 
 import { LLMService } from './services/llm-service.js';
+import {
+    MESSAGE_TYPES,
+    CONTEXT_MENU_IDS,
+    COMMANDS,
+    STORAGE_KEYS,
+    LANGUAGES,
+    MORE_LANGUAGES
+} from './services/constants.js';
+
 
 // Enable comprehensive logging for debugging
 const DEBUG = false;
@@ -75,7 +84,7 @@ class NationAssistantBackground {
      * Handle storage changes
      */
     async handleStorageChange(changes) {
-        if (changes.crestalApiKey || changes.apiBaseUrl) {
+        if (changes[STORAGE_KEYS.API_KEY] || changes[STORAGE_KEYS.API_BASE_URL]) {
             await this.llmService.loadSettings();
         }
     }
@@ -86,7 +95,7 @@ class NationAssistantBackground {
     async handleCommand(command) {
         try {
             switch (command) {
-                case 'open-sidepanel':
+                case COMMANDS.OPEN_SIDEPANEL:
                     const tab = await this.getActiveTab();
                     if (tab) {
                         await chrome.sidePanel.open({ tabId: tab.id });
@@ -107,45 +116,38 @@ class NationAssistantBackground {
         chrome.contextMenus.removeAll();
 
         chrome.contextMenus.create({
-            id: 'nation-assistant',
+            id: CONTEXT_MENU_IDS.PARENT,
             title: 'Nation Assistant',
             contexts: ['page', 'selection']
         });
 
         chrome.contextMenus.create({
-            id: 'analyze-page',
-            parentId: 'nation-assistant',
+            id: CONTEXT_MENU_IDS.ANALYZE_PAGE,
+            parentId: CONTEXT_MENU_IDS.PARENT,
             title: 'Analyze Page',
             contexts: ['page']
         });
 
         chrome.contextMenus.create({
-            id: 'chat-with-selection',
-            parentId: 'nation-assistant',
+            id: CONTEXT_MENU_IDS.CHAT_WITH_SELECTION,
+            parentId: CONTEXT_MENU_IDS.PARENT,
             title: 'Chat with Selection',
             contexts: ['selection']
         });
 
         // Add quick translate options - flatten menu structure
         chrome.contextMenus.create({
-            id: 'translate-auto',
-            parentId: 'nation-assistant',
+            id: CONTEXT_MENU_IDS.TRANSLATE_AUTO,
+            parentId: CONTEXT_MENU_IDS.PARENT,
             title: '🌐 Quick Translate',
             contexts: ['selection']
         });
 
         // Add most common languages directly under main menu
-        const quickLanguages = [
-            { id: 'translate-spanish', title: '🇪🇸 Spanish', code: 'es' },
-            { id: 'translate-french', title: '🇫🇷 French', code: 'fr' },
-            { id: 'translate-german', title: '🇩🇪 German', code: 'de' },
-            { id: 'translate-chinese', title: '🇨🇳 Chinese', code: 'zh' }
-        ];
-
-        quickLanguages.forEach(lang => {
+        LANGUAGES.forEach(lang => {
             chrome.contextMenus.create({
                 id: lang.id,
-                parentId: 'nation-assistant',
+                parentId: CONTEXT_MENU_IDS.PARENT,
                 title: lang.title,
                 contexts: ['selection']
             });
@@ -153,25 +155,16 @@ class NationAssistantBackground {
 
         // Add "More Languages" submenu for less common ones
         chrome.contextMenus.create({
-            id: 'translate-more',
-            parentId: 'nation-assistant',
+            id: CONTEXT_MENU_IDS.TRANSLATE_MORE,
+            parentId: CONTEXT_MENU_IDS.PARENT,
             title: '🌍 More Languages...',
             contexts: ['selection']
         });
 
-        const moreLanguages = [
-            { id: 'translate-italian', title: 'Italian', code: 'it' },
-            { id: 'translate-portuguese', title: 'Portuguese', code: 'pt' },
-            { id: 'translate-russian', title: 'Russian', code: 'ru' },
-            { id: 'translate-japanese', title: 'Japanese', code: 'ja' },
-            { id: 'translate-korean', title: 'Korean', code: 'ko' },
-            { id: 'translate-arabic', title: 'Arabic', code: 'ar' }
-        ];
-
-        moreLanguages.forEach(lang => {
+        MORE_LANGUAGES.forEach(lang => {
             chrome.contextMenus.create({
                 id: lang.id,
-                parentId: 'translate-more',
+                parentId: CONTEXT_MENU_IDS.TRANSLATE_MORE,
                 title: lang.title,
                 contexts: ['selection']
             });
@@ -199,17 +192,17 @@ class NationAssistantBackground {
     async handleMessage(message, sender, sendResponse) {
         try {
             switch (message.type) {
-                case 'getActiveTab':
+                case MESSAGE_TYPES.GET_ACTIVE_TAB:
                     const tab = await this.getActiveTab();
                     sendResponse({ success: true, data: tab });
                     break;
 
-                case 'chatWithPage':
+                case MESSAGE_TYPES.CHAT_WITH_PAGE:
                     const result = await this.handleChatWithPage(message);
                     sendResponse(result);
                     break;
 
-                case 'testConnection':
+                case MESSAGE_TYPES.TEST_CONNECTION:
                     if (message.testConfig) {
                         // Test with provided configuration (from options page)
                         const tempService = new LLMService();
@@ -222,7 +215,7 @@ class NationAssistantBackground {
                     sendResponse({ success: true, data: { connected: true } });
                     break;
 
-                case 'reloadSettings':
+                case MESSAGE_TYPES.RELOAD_SETTINGS:
                     await this.llmService.loadSettings();
                     sendResponse({ success: true, data: { reloaded: true } });
                     break;
@@ -239,59 +232,40 @@ class NationAssistantBackground {
      * Handle context menu clicks
      */
     async handleContextMenuClick(info, tab) {
+        const menuItemId = info.menuItemId;
+        const selectionText = info.selectionText;
+
         try {
-            switch (info.menuItemId) {
-                case 'analyze-page':
+            const allLanguages = [...LANGUAGES, ...MORE_LANGUAGES];
+            const language = allLanguages.find(lang => lang.id === menuItemId);
+
+            if (language) {
+                await this.startTranslation(selectionText, language.language, tab);
+                return;
+            }
+
+            switch (menuItemId) {
+                case CONTEXT_MENU_IDS.ANALYZE_PAGE:
                     await chrome.sidePanel.open({ tabId: tab.id });
                     break;
 
-                case 'chat-with-selection':
+                case CONTEXT_MENU_IDS.CHAT_WITH_SELECTION:
                     await chrome.storage.local.set({
-                        contextAction: {
+                        [STORAGE_KEYS.CONTEXT_ACTION]: {
                             action: 'analyze',
-                            text: info.selectionText,
+                            text: selectionText,
                             timestamp: Date.now(),
                             tabId: tab.id
                         }
                     });
                     await chrome.sidePanel.open({ tabId: tab.id });
                     break;
-                case 'translate-auto':
-                    this.startSmartTranslation(info.selectionText, tab);
-                    break;
-                case 'translate-spanish':
-                    this.startTranslation(info.selectionText, 'Spanish', tab);
-                    break;
-                case 'translate-french':
-                    this.startTranslation(info.selectionText, 'French', tab);
-                    break;
-                case 'translate-german':
-                    this.startTranslation(info.selectionText, 'German', tab);
-                    break;
-                case 'translate-chinese':
-                    this.startTranslation(info.selectionText, 'Chinese', tab);
-                    break;
-                case 'translate-italian':
-                    this.startTranslation(info.selectionText, 'Italian', tab);
-                    break;
-                case 'translate-portuguese':
-                    this.startTranslation(info.selectionText, 'Portuguese', tab);
-                    break;
-                case 'translate-russian':
-                    this.startTranslation(info.selectionText, 'Russian', tab);
-                    break;
-                case 'translate-japanese':
-                    this.startTranslation(info.selectionText, 'Japanese', tab);
-                    break;
-                case 'translate-korean':
-                    this.startTranslation(info.selectionText, 'Korean', tab);
-                    break;
-                case 'translate-arabic':
-                    this.startTranslation(info.selectionText, 'Arabic', tab);
+                case CONTEXT_MENU_IDS.TRANSLATE_AUTO:
+                    this.startSmartTranslation(selectionText, tab);
                     break;
             }
         } catch (error) {
-            console.error('[Background] Context menu error:', error, 'Menu item:', info.menuItemId);
+            console.error('[Background] Context menu error:', error, 'Menu item:', menuItemId);
         }
     }
 
@@ -311,7 +285,7 @@ class NationAssistantBackground {
         
         try {
             // Check if content script is already injected
-            const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+            const response = await chrome.tabs.sendMessage(tabId, { type: MESSAGE_TYPES.PING });
             if (response?.pong) return true;
         } catch { 
             // Content script not present, continue with injection
@@ -341,7 +315,7 @@ class NationAssistantBackground {
             await new Promise(resolve => setTimeout(resolve, 200));
             
             // Verify injection worked
-            const verify = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+            const verify = await chrome.tabs.sendMessage(tabId, { type: MESSAGE_TYPES.PING });
             if (verify?.pong) {
                 logger.log('Content script successfully injected for tab:', tabId);
                 return true;
@@ -391,7 +365,7 @@ class NationAssistantBackground {
             }
 
             // Get page content with timeout
-            const contentPromise = chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' });
+            const contentPromise = chrome.tabs.sendMessage(tab.id, { type: MESSAGE_TYPES.GET_PAGE_CONTENT });
             const timeoutPromise = new Promise((_, reject) => 
                 setTimeout(() => reject(new Error('Page content extraction timed out')), 10000)
             );
@@ -480,7 +454,7 @@ class NationAssistantBackground {
             }
 
             await chrome.storage.local.set({
-                contextAction: {
+                [STORAGE_KEYS.CONTEXT_ACTION]: {
                     action: 'translate',
                     originalText: selectedText,
                     translation: null,
@@ -496,7 +470,7 @@ class NationAssistantBackground {
             const smartTranslation = await this.llmService.smartTranslate(selectedText);
 
             await chrome.storage.local.set({
-                contextAction: {
+                [STORAGE_KEYS.CONTEXT_ACTION]: {
                     action: 'translate',
                     originalText: selectedText,
                     translation: smartTranslation.translation,
@@ -510,7 +484,7 @@ class NationAssistantBackground {
             });
 
             chrome.runtime.sendMessage({
-                type: 'TRANSLATION_READY',
+                type: MESSAGE_TYPES.TRANSLATION_READY,
                 translation: smartTranslation.translation,
                 targetLanguage: smartTranslation.targetLanguage,
                 detectedLanguage: smartTranslation.detectedLanguage,
@@ -521,7 +495,7 @@ class NationAssistantBackground {
             console.error('[Background] Smart translation error:', error);
 
             await chrome.storage.local.set({
-                contextAction: {
+                [STORAGE_KEYS.CONTEXT_ACTION]: {
                     action: 'translate',
                     originalText: selectedText,
                     translation: null,
@@ -535,7 +509,7 @@ class NationAssistantBackground {
             });
 
             chrome.runtime.sendMessage({
-                type: 'TRANSLATION_ERROR',
+                type: MESSAGE_TYPES.TRANSLATION_ERROR,
                 error: error.message
             }).catch(() => { });
         }
@@ -551,7 +525,7 @@ class NationAssistantBackground {
             }
 
             await chrome.storage.local.set({
-                contextAction: {
+                [STORAGE_KEYS.CONTEXT_ACTION]: {
                     action: 'translate',
                     originalText: selectedText,
                     translation: null,
@@ -565,7 +539,7 @@ class NationAssistantBackground {
             const translation = await this.llmService.translateText(selectedText, targetLanguage);
 
             await chrome.storage.local.set({
-                contextAction: {
+                [STORAGE_KEYS.CONTEXT_ACTION]: {
                     action: 'translate',
                     originalText: selectedText,
                     translation: translation,
@@ -577,7 +551,7 @@ class NationAssistantBackground {
             });
 
             chrome.runtime.sendMessage({
-                type: 'TRANSLATION_READY',
+                type: MESSAGE_TYPES.TRANSLATION_READY,
                 translation: translation,
                 targetLanguage: targetLanguage
             }).catch(() => { });
@@ -586,7 +560,7 @@ class NationAssistantBackground {
             console.error('[Background] Translation error:', error);
 
             await chrome.storage.local.set({
-                contextAction: {
+                [STORAGE_KEYS.CONTEXT_ACTION]: {
                     action: 'translate',
                     originalText: selectedText,
                     translation: null,
@@ -599,7 +573,7 @@ class NationAssistantBackground {
             });
 
             chrome.runtime.sendMessage({
-                type: 'TRANSLATION_ERROR',
+                type: MESSAGE_TYPES.TRANSLATION_ERROR,
                 error: error.message
             }).catch(() => { });
         }
