@@ -170,7 +170,7 @@ export function cleanup() {
 /**
  * Smooth scroll to bottom of chat messages
  */
-function smoothScrollToBottom() {
+export function smoothScrollToBottom() {
     const chatMessages = document.getElementById('chat-messages');
     if (chatMessages) {
         // Use smooth scrolling for better UX
@@ -467,7 +467,7 @@ export function showError(message, context = {}) {
     smoothScrollToBottom();
 }
 
-function addMessage(content, sender, save = true) {
+export function addMessage(content, sender, save = true) {
     const { chatMessages } = elements;
     if (!chatMessages) return null;
 

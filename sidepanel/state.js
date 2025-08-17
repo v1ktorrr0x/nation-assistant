@@ -75,24 +75,39 @@ export function updateState(updates) {
 export function cleanupStaleResources() {
   // Clear any stale timeouts
   state.activeTimeouts.forEach(timeoutId => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
+    if (timeoutId && typeof timeoutId === 'number') {
+      try {
+        clearTimeout(timeoutId);
+      } catch (error) {
+        logger.warn('Failed to clear timeout:', timeoutId);
+      }
     }
   });
   state.activeTimeouts.clear();
 
   // Clear any stale intervals
   state.activeIntervals.forEach(intervalId => {
-    if (intervalId) {
-      clearInterval(intervalId);
+    if (intervalId && typeof intervalId === 'number') {
+      try {
+        clearInterval(intervalId);
+      } catch (error) {
+        logger.warn('Failed to clear interval:', intervalId);
+      }
     }
   });
   state.activeIntervals.clear();
 
   // Clean up event listeners that are no longer needed
   state.eventListeners.forEach((cleanup, element) => {
-    if (!document.contains(element)) {
-      cleanup();
+    try {
+      if (element && !document.contains(element)) {
+        if (typeof cleanup === 'function') {
+          cleanup();
+        }
+        state.eventListeners.delete(element);
+      }
+    } catch (error) {
+      logger.warn('Failed to cleanup event listener:', error);
       state.eventListeners.delete(element);
     }
   });

@@ -6,11 +6,14 @@ import { logger, validateAndSanitizeInput } from './utils.js';
 import {
     addAIMessage,
     addSystemMessage,
+    addMessage,
     showError,
     showTypingIndicator,
     hideTypingIndicator,
+    updateTypingIndicator,
     setProcessing,
-    handleInputChange
+    handleInputChange,
+    smoothScrollToBottom
 } from './ui.js';
 import { MESSAGE_TYPES, STORAGE_KEYS } from '../services/constants.js';
 
@@ -257,45 +260,74 @@ export async function handleContextAction() {
 }
 
 function handleTranslateAction(contextAction) {
-    const { originalText, targetLanguage, smart } = contextAction;
-    const chatMessages = document.getElementById('chat-messages');
+    try {
+        const { originalText, targetLanguage, smart } = contextAction;
+        const chatMessages = document.getElementById('chat-messages');
 
-    // Show enhanced loading message with full context
-    const loadingEl = document.createElement('div');
-    loadingEl.id = 'translation-loading';
-    loadingEl.classList.add('message', 'system');
+        if (!chatMessages) {
+            logger.error('Chat messages container not found');
+            return;
+        }
 
-    const displayText = originalText.length > 100 ?
-        originalText.substring(0, 100) + '...' : originalText;
+        if (!originalText || !originalText.trim()) {
+            addSystemMessage('❌ No text provided for translation.');
+            return;
+        }
 
-    loadingEl.innerHTML = `
-    <div class="message-content">
-      <div class="translation-context">
-        <div class="translation-header">
-          <div class="loading-spinner"></div>
-          <span>${smart ? '🌐 Smart Translation' : '🔄 Translation'} in progress...</span>
+        // Show enhanced loading message with full context
+        const loadingEl = document.createElement('div');
+        loadingEl.id = 'translation-loading';
+        loadingEl.classList.add('message', 'system');
+
+        const displayText = originalText.length > 100 ?
+            originalText.substring(0, 100) + '...' : originalText;
+
+        loadingEl.innerHTML = `
+        <div class="message-content">
+          <div class="translation-context">
+            <div class="translation-header">
+              <div class="loading-spinner"></div>
+              <span>${smart ? '🌐 Smart Translation' : '🔄 Translation'} in progress...</span>
+            </div>
+            <div class="original-text">
+              <strong>Original:</strong> "${displayText}"
+            </div>
+            <div class="target-info">
+              <strong>Target:</strong> ${targetLanguage || 'Auto-detected'}
+            </div>
+          </div>
         </div>
-        <div class="original-text">
-          <strong>Original:</strong> "${displayText}"
-        </div>
-        <div class="target-info">
-          <strong>Target:</strong> ${targetLanguage}
-        </div>
-      </div>
-    </div>
-  `;
-    chatMessages.appendChild(loadingEl);
-    smoothScrollToBottom();
+      `;
+        chatMessages.appendChild(loadingEl);
+        smoothScrollToBottom();
+    } catch (error) {
+        logger.error('Error in handleTranslateAction:', error);
+        addSystemMessage('❌ Failed to process translation request.');
+    }
 }
 
 function handleSummarizeAction(contextAction) {
-    const { text } = contextAction;
-    addMessage(`Selected text: "${text}"`, "system", false);
-    handleSendMessage(`Please summarize this text: "${text}"`, false);
+    try {
+        const { text } = contextAction;
+        if (text && text.trim()) {
+            addMessage(`Selected text: "${text}"`, "system", false);
+            handleSendMessage(`Please summarize this text: "${text}"`, false);
+        }
+    } catch (error) {
+        logger.error('Error in handleSummarizeAction:', error);
+        addSystemMessage('❌ Failed to process selected text for summarization.');
+    }
 }
 
 function handleExplainAction(contextAction) {
-    const { text } = contextAction;
-    addMessage(`Selected text: "${text}"`, "system", false);
-    handleSendMessage(`Please explain this text: "${text}"`, false);
+    try {
+        const { text } = contextAction;
+        if (text && text.trim()) {
+            addMessage(`Selected text: "${text}"`, "system", false);
+            handleSendMessage(`Please explain this text: "${text}"`, false);
+        }
+    } catch (error) {
+        logger.error('Error in handleExplainAction:', error);
+        addSystemMessage('❌ Failed to process selected text for explanation.');
+    }
 }

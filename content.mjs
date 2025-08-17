@@ -1,7 +1,7 @@
 // Nation Assistant Content Script
 'use strict';
 
-import { MESSAGE_TYPES } from '/services/constants.js';
+import { MESSAGE_TYPES } from './services/constants.js';
 
 if (!window.nationAssistantInjected) {
   window.nationAssistantInjected = true;
