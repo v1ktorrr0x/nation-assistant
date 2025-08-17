@@ -198,8 +198,19 @@ class NationAssistantBackground {
                     break;
 
                 case MESSAGE_TYPES.CHAT_WITH_PAGE:
-                    const result = await this.handleChatWithPage(message);
-                    sendResponse(result);
+                    sendResponse(await this.handleChatWithPage(message));
+                    break;
+
+                case MESSAGE_TYPES.SUMMARIZE_PAGE:
+                    sendResponse(await this.handleSummarizePage(message));
+                    break;
+
+                case MESSAGE_TYPES.LIST_KEY_POINTS:
+                    sendResponse(await this.handleListKeyPoints(message));
+                    break;
+
+                case MESSAGE_TYPES.EXPLAIN_PAGE:
+                    sendResponse(await this.handleExplainPage(message));
                     break;
 
                 case MESSAGE_TYPES.TEST_CONNECTION:
@@ -308,7 +319,7 @@ class NationAssistantBackground {
             // Inject content script
             await chrome.scripting.executeScript({
                 target: { tabId },
-                files: ['debug-config.js', 'content.js']
+                files: ['libs/Readability.js', 'libs/turndown.js', 'debug-config.js', 'content.js']
             });
 
             // Wait for injection to complete
@@ -403,6 +414,66 @@ class NationAssistantBackground {
             return { success: false, error: userMessage };
         }
     }
+
+    /**
+     * A generic handler for page actions like summarize, explain, etc.
+     */
+    async _handlePageAction(message, actionCallback) {
+        const { tabId, ...rest } = message;
+        try {
+            const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
+            if (!tab) throw new Error('No active tab found.');
+
+            await this.ensureContentScript(tab.id);
+
+            const contentPromise = chrome.tabs.sendMessage(tab.id, { type: MESSAGE_TYPES.GET_PAGE_CONTENT });
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Page content extraction timed out')), 10000)
+            );
+
+            const response = await Promise.race([contentPromise, timeoutPromise]);
+            if (!response?.pageContent) {
+                throw new Error('Unable to extract content from this page.');
+            }
+             if (response.pageContent.trim().length < 10) {
+                throw new Error('This page appears to have very little content to analyze.');
+            }
+
+            const llmResponse = await actionCallback(response.pageContent, rest);
+            return { success: true, data: { response: llmResponse } };
+        } catch (error) {
+            logger.error('Page action failed:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Handles summarizing the page
+     */
+    async handleSummarizePage(message) {
+        return this._handlePageAction(message, (pageContent) => {
+            return this.llmService.summarizePage(pageContent);
+        });
+    }
+
+    /**
+     * Handles listing key points from the page
+     */
+    async handleListKeyPoints(message) {
+        return this._handlePageAction(message, (pageContent) => {
+            return this.llmService.listKeyPoints(pageContent);
+        });
+    }
+
+    /**
+     * Handles explaining a selection from the page
+     */
+    async handleExplainPage(message) {
+        return this._handlePageAction(message, (pageContent, { selectedText }) => {
+            return this.llmService.explainPage(pageContent, selectedText);
+        });
+    }
+
 
     /**
      * Start smart translation (auto-detect best target language)

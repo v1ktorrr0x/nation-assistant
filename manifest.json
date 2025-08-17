@@ -54,7 +54,9 @@
       "resources": [
         "styles/nation-theme.css",
         "content.mjs",
-        "services/constants.js"
+        "services/constants.js",
+        "libs/Readability.js",
+        "libs/turndown.js"
       ],
       "matches": [
         "<all_urls>"

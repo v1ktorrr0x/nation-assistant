@@ -225,11 +225,13 @@ export async function handleContextAction() {
                     await handleTranslateAction(contextAction);
                     break;
                 case 'analyze':
-                    // Handle text analysis
-                    if (contextAction.text) {
-                        addSystemMessage(`Selected text: "${contextAction.text}"`);
-                        addAIMessage("I can help you understand, translate, or analyze this text. What would you like to know?");
-                    }
+                    handleListKeyPointsAction(contextAction);
+                    break;
+                case 'summarize':
+                    handleSummarizeAction(contextAction);
+                    break;
+                case 'explain':
+                    handleExplainAction(contextAction);
                     break;
                 default:
                     // Generic context action - handle legacy format
@@ -306,28 +308,68 @@ function handleTranslateAction(contextAction) {
     }
 }
 
-function handleSummarizeAction(contextAction) {
+async function _sendPageAction(action) {
+    const { type, payload = {}, processingMessage } = action;
+    logger.log(`_sendPageAction called:`, { type, payload, isProcessing: state.isProcessing });
+
+    if (state.isProcessing) {
+        logger.warn('Action blocked: another process is running.');
+        return;
+    }
+
+    updateState({ isProcessing: true });
+    setProcessing(true, processingMessage, 'analyzing');
+
     try {
-        const { text } = contextAction;
-        if (text && text.trim()) {
-            addMessage(`Selected text: "${text}"`, "system", false);
-            handleSendMessage(`Please summarize this text: "${text}"`, false);
+        const response = await chrome.runtime.sendMessage({
+            type: type,
+            tabId: state.currentTabId,
+            ...payload
+        });
+
+        if (response?.success) {
+            addAIMessage(response.data.response);
+        } else {
+            throw new Error(response?.error || 'Unknown error performing action');
         }
     } catch (error) {
-        logger.error('Error in handleSummarizeAction:', error);
-        addSystemMessage('❌ Failed to process selected text for summarization.');
+        showError(error.message, {
+            connection: error.message.includes('fetch') || error.message.includes('Failed to fetch')
+        });
+    } finally {
+        updateState({ isProcessing: false });
+        setProcessing(false);
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput) {
+            chatInput.disabled = false;
+            chatInput.focus();
+        }
     }
 }
 
+
+function handleSummarizeAction(contextAction) {
+    addSystemMessage('Summarizing the page...');
+    _sendPageAction({
+        type: MESSAGE_TYPES.SUMMARIZE_PAGE,
+        processingMessage: 'SUMMARIZING...'
+    });
+}
+
 function handleExplainAction(contextAction) {
-    try {
-        const { text } = contextAction;
-        if (text && text.trim()) {
-            addMessage(`Selected text: "${text}"`, "system", false);
-            handleSendMessage(`Please explain this text: "${text}"`, false);
-        }
-    } catch (error) {
-        logger.error('Error in handleExplainAction:', error);
-        addSystemMessage('❌ Failed to process selected text for explanation.');
-    }
+    const { text } = contextAction;
+    addSystemMessage(`Explaining: "${text}"`);
+    _sendPageAction({
+        type: MESSAGE_TYPES.EXPLAIN_PAGE,
+        payload: { selectedText: text },
+        processingMessage: 'EXPLAINING...'
+    });
+}
+
+function handleListKeyPointsAction(contextAction) {
+    addSystemMessage('Extracting key points from the page...');
+    _sendPageAction({
+        type: MESSAGE_TYPES.LIST_KEY_POINTS,
+        processingMessage: 'EXTRACTING...'
+    });
 }
