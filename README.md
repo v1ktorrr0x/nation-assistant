@@ -12,15 +12,39 @@ AI-powered Chrome extension for intelligent web content analysis. Chat with any 
 - **Context Menu** - Quick access without opening sidebar
 - **Video Analysis** - Analyze YouTube videos via transcripts (open transcript → right-click → analyze)
 
-## Quick Start
+## Installation
+
+There are two ways to install Nation Assistant:
+
+### Option 1: Install from Chrome Web Store (Recommended)
+
+*Coming soon...*
+
+### Option 2: Install from GitHub (for Developers)
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/v1ktorrr0x/nation-assistant.git
+    ```
+
+2.  **Load the extension in your browser:**
+    *   **Chrome/Edge:**
+        1.  Open `chrome://extensions` or `edge://extensions`.
+        2.  Enable **Developer mode**.
+        3.  Click **Load unpacked**.
+        4.  Select the cloned `nation-assistant` directory.
+    *   **Firefox:**
+        1.  Open `about:debugging#/runtime/this-firefox`.
+        2.  Click **Load Temporary Add-on...**.
+        3.  Select the `manifest.json` file inside the cloned `nation-assistant` directory.
+
+## Getting Started
 
 <img width="360" height="545" alt="image" src="https://github.com/user-attachments/assets/201d84aa-dd52-4e18-88c5-a0e4a890b8b8" />
 
-
-1. **Install** the extension
-2. **Get API key** from [Crestal Network](https://www.crestal.network/blog/from-gm-to-sdk-nations-agent-api-is-here)
-3. **Click extension icon** → Settings ⚙️ → Enter API key
-4. **Start chatting** with any webpage!
+1. **Get an API key** from [Crestal Network](https://www.crestal.network/blog/from-gm-to-sdk-nations-agent-api-is-here).
+2. **Click the extension icon** → **Settings** ⚙️ → **Enter your API key**.
+3. **Start chatting** with any webpage!
 
 ## Usage
 
@@ -52,18 +76,6 @@ AI-powered Chrome extension for intelligent web content analysis. Chat with any 
 3. Open extension settings and enter your key
 4. Test connection and start using
 
-## Development
-
-```bash
-# Clone repository
-git clone https://github.com/v1ktorrr0x/nation-assistant.git
-
-# Load in Chrome
-# 1. Go to chrome://extensions/
-# 2. Enable Developer mode
-# 3. Click "Load unpacked"
-# 4. Select the extension directory
-```
 
 ## License
 
