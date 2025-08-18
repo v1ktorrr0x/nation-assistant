@@ -1,50 +1,39 @@
-# Nation Assistant - Quick Reference
+# Quick Reference
 
-## 🚀 Getting Started
-1. **Install extension** → **Get API key** from [Crestal Network](https://crestal.network)
-2. **Click Nation Assistant icon** → **Settings (⚙️)** → **Enter API key** → **Test & Save**
-3. **Start chatting** with AI about any webpage!
+## Setup
+1. **Get API key** from [Nation's Agent API](https://www.crestal.network/blog/from-gm-to-sdk-nations-agent-api-is-here)
+2. **Click extension icon** → **Settings ⚙️** → **Enter key** → **Test**
+3. **Start chatting** with any webpage!
 
-## 💬 Basic Usage
+## Usage
 
-### Chat with AI
-- **Click extension icon** to open sidebar
+### Smart Actions (Buttons)
+- **Analyze** - Structured page analysis
+- **Summarize** - Executive summary  
+- **Key Insights** - Important bullet points
+
+### Chat
 - **Ask questions** about the current page
-- **Watch responses stream** with terminal-style animation
+- **Follow-up questions** for deeper understanding
 
-### Context Menu (Right-click)
+### Context Menu
 - **Select text** → **Right-click** → **Nation Assistant**
-- **Analyze Page** - Get page insights
-- **Chat with Selection** - Analyze selected text
-- **Quick Translate** - Auto-detect and translate
-- **Language options** - Direct translation to specific languages
+- Choose: Analyze, Translate, or Chat with Selection
 
-## ⌨️ Keyboard Shortcuts
+## Shortcuts
 | Key | Action |
 |-----|--------|
-| `Enter` | Send message |
-| `Shift+Enter` | New line |
-| `Escape` | Clear input |
+| `Ctrl+R` | Retry last action |
 | `Ctrl+K` | Focus input |
-| `Ctrl+R` | Retry message |
+| `Enter` | Send message |
 
-## 🎯 Best Prompts
+## Best Prompts
 - "What is this page about?"
-- "Summarize the main points"
+- "Give me a step-by-step guide"
 - "Explain this in simple terms"
-- "What are the key takeaways?"
-- "Translate this text"
+- "What should I know about this?"
 
-## 🔧 Troubleshooting
-- **No responses?** → Check API key in settings
-- **Slow/errors?** → Check internet connection
-- **Translation issues?** → Select text first, then right-click
-
-## 💡 Pro Tips
-- **Be specific** in questions for better results
-- **Use Smart Translation** for auto-language detection
-- **Pin sidebar** for continuous access
-- **Ask follow-ups** to dive deeper into topics
-
----
-**Need more help?** See the full [Usage Guide](USAGE_GUIDE.md)
+## Troubleshooting
+- **No responses?** → Check API key
+- **Errors?** → Check internet connection
+- **Translation issues?** → Select text first
