@@ -4,7 +4,8 @@
 import { state, updateState } from './state.js';
 import { formatAIResponse } from './formatter.js';
 import { formatTime, escapeHtml, logger } from './utils.js';
-import { retryLastMessage, handleSendMessage } from './api.js';
+import { retryLastMessage, handleSendMessage, _sendPageAction } from './api.js';
+import { MESSAGE_TYPES } from '../services/constants.js';
 import { ELEMENT_IDS } from '../services/constants.js';
 
 
@@ -109,24 +110,7 @@ function manageStorageQuota() {
     const MAX_MESSAGE_LENGTH = 10000; // Maximum length per message
 
     try {
-        // Trim chat history if it exceeds maximum size
-        if (state.chatHistory.length > MAX_HISTORY_SIZE) {
-            const excessCount = state.chatHistory.length - MAX_HISTORY_SIZE;
-            state.chatHistory.splice(0, excessCount);
-            logger.log(`Trimmed ${excessCount} old messages from chat history`);
-        }
-
-        // Trim individual messages that are too long
-        state.chatHistory.forEach((message, index) => {
-            if (message.content && message.content.length > MAX_MESSAGE_LENGTH) {
-                const originalLength = message.content.length;
-                message.content = message.content.substring(0, MAX_MESSAGE_LENGTH) + '... [truncated]';
-                logger.log(`Truncated message ${index} from ${originalLength} to ${message.content.length} characters`);
-            }
-        });
-
-        // Estimate storage usage and warn if approaching limits
-        const estimatedSize = JSON.stringify(state.chatHistory).length;
+        // Storage management simplified without chat history
         const STORAGE_WARNING_THRESHOLD = 4 * 1024 * 1024; // 4MB warning threshold
 
         if (estimatedSize > STORAGE_WARNING_THRESHOLD) {
@@ -354,8 +338,7 @@ export async function handleRefresh() {
     if (state.isProcessing) return;
 
     try {
-        // Clear chat history
-        updateState({ chatHistory: [] });
+        // Clear chat messages from UI only (no history to clear)
 
 
         // Clear chat messages with smooth transition
@@ -528,10 +511,7 @@ export function addMessage(content, sender, save = true) {
 
     // Save to history with quota management
     if (save) {
-        const newMessage = { content, sender, timestamp: new Date() };
-        state.chatHistory.push(newMessage);
-
-        // Implement storage quota management
+        // Messages are no longer saved to history - each chat is independent
         manageStorageQuota();
     }
 
@@ -614,9 +594,8 @@ function copyToClipboard(text, button) {
 function regenerateLastResponse(button) {
     if (state.isProcessing) return;
 
-    // Get the last user message
-    const lastUserMessage = state.chatHistory.slice().reverse().find(msg => msg.sender === 'user');
-    if (!lastUserMessage) return;
+    // Use the stored last user message for retry
+    if (!state.lastUserMessage) return;
 
     // Enhanced loading state on button
     button.innerHTML = '<div class="enhanced-loading-spinner"></div>';
@@ -684,12 +663,54 @@ export function showWelcomeMessage() {
         btn.addEventListener('click', () => {
             const message = btn.dataset.message;
             if (message) {
-                handleSendMessage(message);
+                // Route to appropriate smart action based on button text
+                if (message === "Summarize the main points") {
+                    handleSmartAction('summarize');
+                } else if (message === "What are the key takeaways?") {
+                    handleSmartAction('keypoints');
+                } else if (message === "What is this page about?") {
+                    handleSmartAction('analyze');
+                } else {
+                    // Fallback to regular chat for other messages
+                    handleSendMessage(message);
+                }
             }
         });
     });
 
     chatMessages.appendChild(welcomeEl);
+}
+
+/**
+ * Handle smart action buttons by triggering appropriate backend actions
+ */
+export function handleSmartAction(actionType) {
+    switch (actionType) {
+        case 'summarize':
+            addSystemMessage('Summarizing the page...');
+            _sendPageAction({
+                type: MESSAGE_TYPES.SUMMARIZE_PAGE,
+                processingMessage: 'SUMMARIZING...'
+            });
+            break;
+        case 'keypoints':
+            addSystemMessage('Extracting key points from the page...');
+            _sendPageAction({
+                type: MESSAGE_TYPES.LIST_KEY_POINTS,
+                processingMessage: 'EXTRACTING...'
+            });
+            break;
+        case 'analyze':
+            addSystemMessage('Analyzing the page...');
+            _sendPageAction({
+                type: MESSAGE_TYPES.CHAT_WITH_PAGE,
+                payload: { question: "What is this page about? Provide a comprehensive analysis." },
+                processingMessage: 'ANALYZING...'
+            });
+            break;
+        default:
+            logger.warn('Unknown smart action:', actionType);
+    }
 }
 
 /**

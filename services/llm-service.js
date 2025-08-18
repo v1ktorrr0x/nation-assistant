@@ -83,7 +83,7 @@ class LLMService {
       if (!response.ok) {
         // Secure error handling - don't expose sensitive data
         let errorMessage = 'Request failed';
-        
+
         try {
           const errorData = await response.json();
           // Only use safe error messages, avoid exposing API details
@@ -102,7 +102,7 @@ class LLMService {
           // If we can't parse the error, use generic message
           logger.warn('Failed to parse error response');
         }
-        
+
         throw new Error(`API Error (${response.status}): ${errorMessage}`);
       }
 
@@ -133,7 +133,7 @@ class LLMService {
       /sk-[A-Za-z0-9]+/i, // OpenAI-style keys
       /[A-Za-z0-9]{32,}/i // Long alphanumeric strings (potential keys)
     ];
-    
+
     return sensitivePatterns.some(pattern => pattern.test(message));
   }
 
@@ -173,15 +173,12 @@ class LLMService {
   }
 
   /**
-   * Chat with webpage content using a single optimized prompt with enhanced context
+   * Chat with webpage content using simple query + page content
    */
-  async chatWithPage(pageContent, userQuery = "", chatHistory = []) {
+  async chatWithPage(pageContent, userQuery = "") {
     const finalQuery = userQuery.trim() === ""
       ? "What is this page about? Give me a brief overview."
       : userQuery;
-
-    // Build enhanced prompt with conversation history context
-    const contextualPrompt = this.buildContextualPrompt(finalQuery, pageContent, chatHistory);
 
     const messages = [
       {
@@ -190,7 +187,10 @@ class LLMService {
       },
       {
         role: 'user',
-        content: contextualPrompt
+        content: `**QUESTION:** ${finalQuery}
+
+**WEBPAGE CONTENT:**
+${pageContent}`
       }
     ];
 
@@ -198,35 +198,7 @@ class LLMService {
     return this.formatResponse(rawResponse);
   }
 
-  /**
-   * Build a contextual prompt that includes conversation history for better continuity
-   */
-  buildContextualPrompt(currentQuery, pageContent, chatHistory) {
-    let prompt = '';
 
-    // Add conversation context if exists
-    if (chatHistory.length > 0) {
-      prompt += `**CONVERSATION CONTEXT:**\n`;
-      
-      // Get last 4 messages (2 exchanges) for context
-      const recentHistory = chatHistory.slice(-4);
-      
-      recentHistory.forEach((msg) => {
-        const role = msg.role === 'user' ? 'My previous question' : 'Your previous response';
-        prompt += `${role}: ${msg.content}\n`;
-      });
-      
-      prompt += `\n**CURRENT QUESTION:** ${currentQuery}\n\n`;
-      prompt += `Please answer my current question while considering our previous conversation. `;
-      prompt += `If my current question relates to something we discussed before, reference that context appropriately.\n\n`;
-    } else {
-      prompt += `**QUESTION:** ${currentQuery}\n\n`;
-    }
-
-    prompt += `**WEBPAGE CONTENT:**\n${pageContent}`;
-
-    return prompt;
-  }
 
   /**
    * Smart translate - auto-detect source language and choose best target
@@ -253,7 +225,7 @@ ${text}`
     ];
 
     const response = await this.makeRequest(messages, { maxTokens: 600 });
-    
+
     try {
       const parsed = JSON.parse(response.trim());
       return {
@@ -287,6 +259,150 @@ ${text}`
 
     const translation = await this.makeRequest(messages, { maxTokens: 500 });
     return translation.trim();
+  }
+
+  /**
+   * Summarize page content with specialized prompt
+   */
+  async summarizePage(pageContent) {
+    const messages = [
+      {
+        role: 'system',
+        content: `You are a professional content summarizer specializing in web content analysis. Your task is to create executive-level summaries that busy professionals can quickly understand. Always respond in English with clear, actionable insights using structured formatting.`
+      },
+      {
+        role: 'user',
+        content: `Create a comprehensive yet concise summary of this webpage using the following structured format:
+
+**📄 CONTENT SUMMARY**
+
+**Main Topic:** [One clear sentence describing what this page is about]
+
+**Content Type:** [Article, Product Page, Tutorial, Documentation, Blog Post, etc.]
+
+**Key Insights:**
+• [First core insight or main argument]
+• [Second core insight or main argument] 
+• [Third core insight if applicable]
+
+**Target Audience:** [Who this content is designed for]
+
+**Next Steps:** [Any actionable information or recommended actions]
+
+Use this exact structure with markdown formatting. Keep each section concise but informative.
+
+**Content to summarize:**
+${pageContent}`
+      }
+    ];
+
+    const summary = await this.makeRequest(messages, { maxTokens: 500 });
+    return summary.trim();
+  }
+
+  /**
+   * Extract key points from page content
+   */
+  async listKeyPoints(pageContent) {
+    const messages = [
+      {
+        role: 'system',
+        content: `You are a strategic information analyst who extracts the most valuable insights from content. Your expertise is in identifying actionable intelligence, key facts, and critical takeaways that decision-makers need. Always respond in English with structured, impactful formatting.`
+      },
+      {
+        role: 'user',
+        content: `Extract the most important insights from this webpage using the following structured format:
+
+**🔍 KEY INSIGHTS**
+
+**📊 Facts & Data:**
+• [Important numbers, statistics, or research findings]
+• [Additional quantitative information if available]
+
+**⚡ Actionable Items:**
+• [Steps, recommendations, or how-to information]
+• [Things users can do or implement]
+
+**💡 Key Arguments:**
+• [Main claims, conclusions, or expert opinions]
+• [Important reasoning or logic presented]
+
+**📋 Important Details:**
+• [Critical dates, names, specifications, or requirements]
+• [Essential information to remember]
+
+**🎯 Value Propositions:**
+• [Benefits, advantages, or unique features highlighted]
+• [What makes this content/product/service valuable]
+
+**Instructions:**
+- Only include sections that have relevant content
+- Limit to 5-7 total points across all sections
+- Each point should be 1-2 sentences maximum
+- Start each point with the most important concept
+- Use clear, actionable language
+
+**Content to analyze:**
+${pageContent}`
+      }
+    ];
+
+    const keyPoints = await this.makeRequest(messages, { maxTokens: 600 });
+    return keyPoints.trim();
+  }
+
+
+
+  /**
+   * Analyze page content with specialized prompt for general analysis
+   */
+  async analyzePage(pageContent) {
+    const messages = [
+      {
+        role: 'system',
+        content: `You are a senior digital content strategist and UX analyst with expertise in web content evaluation. You provide comprehensive, professional analysis that helps users understand the strategic value and context of web content. Always respond in English with structured, professional formatting.`
+      },
+      {
+        role: 'user',
+        content: `Conduct a comprehensive analysis of this webpage using the following structured format:
+
+**🔍 CONTENT ANALYSIS**
+
+**📂 Content Classification**
+• **Type:** [Article, Product Page, Landing Page, Documentation, etc.]
+• **Industry:** [Domain/industry context]
+• **Format:** [Structure and presentation style]
+
+**🎯 Strategic Purpose**
+• **Primary Objective:** [Main goal of this page]
+• **Target Audience:** [Intended users and their intent]
+• **Business Goals:** [Commercial or informational objectives]
+
+**💎 Key Value Propositions**
+• **Main Benefits:** [Primary value offered to users]
+• **Differentiators:** [Unique selling points or advantages]
+• **Core Message:** [Central thesis or key takeaway]
+
+**⭐ Quality Assessment**
+• **Information Depth:** [Comprehensive/Basic/Surface-level]
+• **Credibility:** [High/Medium/Low with reasoning]
+• **User Experience:** [Professional/Good/Needs Improvement]
+• **Overall Rating:** [Excellent/Good/Fair/Poor]
+
+**🚀 Actionable Insights**
+• **Next Steps:** [What users should do after reading]
+• **Key Takeaways:** [Most important points for decision-making]
+• **Relevance:** [Value for different user types]
+
+Use this exact structure with markdown formatting and emojis. Keep each point concise but informative.
+
+**Content to analyze:**
+${pageContent}`
+      }
+    ];
+
+    const analysis = await this.makeRequest(messages, { maxTokens: 700 });
+    return analysis.trim();
   }
 }
 

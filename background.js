@@ -361,7 +361,7 @@ class NationAssistantBackground {
      * Handle chat with page with enhanced error handling
      */
     async handleChatWithPage(message) {
-        const { tabId, question = "", chatHistory = [] } = message;
+        const { tabId, question = "" } = message;
 
         try {
             const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
@@ -391,7 +391,7 @@ class NationAssistantBackground {
                 throw new Error('This page appears to have very little content to analyze. Try a different page with more text.');
             }
 
-            const llmResponse = await this.llmService.chatWithPage(response.pageContent, question, chatHistory);
+            const llmResponse = await this.llmService.chatWithPage(response.pageContent, question);
 
             return { success: true, data: { response: llmResponse } };
             

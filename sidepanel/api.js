@@ -51,6 +51,8 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
     // Use sanitized message
     const sanitizedMessage = validation.sanitized;
 
+
+
     // Store sanitized message for retry functionality (always store, even when regenerating)
     updateState({ lastUserMessage: sanitizedMessage });
     logger.log('Stored last user message for retry:', sanitizedMessage);
@@ -84,11 +86,7 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
         const response = await chrome.runtime.sendMessage({
             type: MESSAGE_TYPES.CHAT_WITH_PAGE,
             tabId: state.currentTabId,
-            question: sanitizedMessage,
-            chatHistory: state.chatHistory.slice(-4).map(msg => ({
-                role: msg.sender === 'user' ? 'user' : 'assistant',
-                content: msg.content
-            }))
+            question: sanitizedMessage
         });
 
         hideTypingIndicator();
@@ -308,7 +306,7 @@ function handleTranslateAction(contextAction) {
     }
 }
 
-async function _sendPageAction(action) {
+export async function _sendPageAction(action) {
     const { type, payload = {}, processingMessage } = action;
     logger.log(`_sendPageAction called:`, { type, payload, isProcessing: state.isProcessing });
 

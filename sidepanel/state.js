@@ -1,10 +1,9 @@
 // sidepanel/state.js
 'use strict';
 
-import { logger } from './utils.js';
+// Remove circular import - logger will be passed as parameter where needed
 
 export const state = {
-  chatHistory: [],
   isProcessing: false,
   currentTabId: null,
   currentStreamingController: null,
@@ -20,27 +19,17 @@ export const state = {
  * Validate and sanitize application state
  */
 export function validateState() {
-  // Ensure chatHistory is an array and not too large
-  if (!Array.isArray(state.chatHistory)) {
-    logger.warn('Invalid chatHistory detected, resetting');
-    state.chatHistory = [];
-  }
 
-  // Limit chat history size for memory management
-  if (state.chatHistory.length > 100) {
-    logger.log('Trimming chat history for memory management');
-    state.chatHistory = state.chatHistory.slice(-50); // Keep last 50 messages
-  }
 
   // Validate processing state
   if (typeof state.isProcessing !== 'boolean') {
-    logger.warn('Invalid isProcessing state, resetting to false');
+    console.warn('[State] Invalid isProcessing state, resetting to false');
     state.isProcessing = false;
   }
 
   // Validate tab ID
   if (state.currentTabId !== null && typeof state.currentTabId !== 'number') {
-    logger.warn('Invalid currentTabId, resetting');
+    console.warn('[State] Invalid currentTabId, resetting');
     state.currentTabId = null;
   }
 
@@ -61,9 +50,9 @@ export function updateState(updates) {
   try {
     Object.assign(state, updates);
     validateState();
-    logger.debug('State updated successfully', updates);
+    console.debug('[State] State updated successfully', updates);
   } catch (error) {
-    logger.error('State update failed:', error);
+    console.error('[State] State update failed:', error);
     // Restore to safe state if update fails
     state.isProcessing = false;
   }
@@ -79,7 +68,7 @@ export function cleanupStaleResources() {
       try {
         clearTimeout(timeoutId);
       } catch (error) {
-        logger.warn('Failed to clear timeout:', timeoutId);
+        console.warn('[State] Failed to clear timeout:', timeoutId);
       }
     }
   });
@@ -91,7 +80,7 @@ export function cleanupStaleResources() {
       try {
         clearInterval(intervalId);
       } catch (error) {
-        logger.warn('Failed to clear interval:', intervalId);
+        console.warn('[State] Failed to clear interval:', intervalId);
       }
     }
   });
@@ -107,7 +96,7 @@ export function cleanupStaleResources() {
         state.eventListeners.delete(element);
       }
     } catch (error) {
-      logger.warn('Failed to cleanup event listener:', error);
+      console.warn('[State] Failed to cleanup event listener:', error);
       state.eventListeners.delete(element);
     }
   });

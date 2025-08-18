@@ -11,9 +11,20 @@ if (!window.nationAssistantInjected) {
     try {
       // Use a clone of the document to avoid affecting the live page
       const documentClone = document.cloneNode(true);
+      
+      // Check if Readability is available
+      if (typeof Readability === 'undefined') {
+        throw new Error('Readability library not loaded');
+      }
+      
       const article = new Readability(documentClone).parse();
 
-      if (article && article.content) {
+      if (article && article.content && typeof article.content === 'string') {
+        // Check if TurndownService is available
+        if (typeof TurndownService === 'undefined') {
+          throw new Error('TurndownService library not loaded');
+        }
+        
         // Initialize Turndown service
         const turndownService = new TurndownService({
           headingStyle: 'atx',
@@ -25,19 +36,38 @@ if (!window.nationAssistantInjected) {
         // Convert the article HTML to Markdown
         let markdown = turndownService.turndown(article.content);
 
+        // Ensure markdown is a string
+        if (typeof markdown !== 'string') {
+          throw new Error('Turndown conversion failed');
+        }
+
         // Truncate if necessary
         if (markdown.length > MAX_TEXT_LENGTH) {
           markdown = markdown.substring(0, MAX_TEXT_LENGTH) + '...';
         }
         return markdown;
       }
-      return null;
+      
+      // If no article content found, throw error to trigger fallback
+      throw new Error('No readable content found by Readability');
+      
     } catch (error) {
       console.error('Error extracting article:', error);
-      // Fallback to basic text extraction if Readability fails
-      const text = document.body.innerText;
-      const cleaned = text.replace(/\s+/g, ' ').trim();
-      return cleaned.length > MAX_TEXT_LENGTH ? cleaned.substring(0, MAX_TEXT_LENGTH) + '...' : cleaned;
+      
+      // Fallback to basic text extraction
+      try {
+        const text = document.body?.innerText || document.body?.textContent || '';
+        const cleaned = text.replace(/\s+/g, ' ').trim();
+        
+        if (!cleaned) {
+          return 'No content could be extracted from this page.';
+        }
+        
+        return cleaned.length > MAX_TEXT_LENGTH ? cleaned.substring(0, MAX_TEXT_LENGTH) + '...' : cleaned;
+      } catch (fallbackError) {
+        console.error('Fallback extraction also failed:', fallbackError);
+        return 'Unable to extract content from this page.';
+      }
     }
   }
 
