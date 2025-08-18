@@ -1,121 +1,66 @@
 # Nation Assistant
 
-AI-powered Chrome extension that provides intelligent web content analysis through an intuitive sidebar interface with streaming responses and contextual suggestions.
+<img width="160" height="151" alt="extlogo" src="https://github.com/user-attachments/assets/6d1d6a49-271b-4ef8-aa6c-7f49fd2e3055" />
 
-## ✨ Features
+AI-powered Chrome extension for intelligent web content analysis. Chat with any webpage using AI through a clean sidebar interface.
 
-### 🤖 **Intelligent Page Analysis**
-- Smart content extraction and AI-powered analysis
-- Contextual suggestions based on page type (articles, tutorials, documentation, products)
-- Real-time streaming responses with interactive controls
+## Features
 
-### 🎯 **Context Menu Integration**
-- Right-click selected text for instant analysis
-- Smart translation with auto-language detection
-- Quick access to AI insights without leaving the page
+- **Smart Chat** - Ask questions about any webpage
+- **Page Analysis** - Summarize, extract key points, or analyze content  
+- **Translation** - Right-click text to translate with auto-detection
+- **Context Menu** - Quick access without opening sidebar
+- **Video Analysis** - Analyze YouTube videos via transcripts (open transcript → right-click → analyze)
 
-### 💬 **Advanced Chat Interface**
-- Streaming animation with speed controls (click to accelerate, double-click for instant)
-- Message actions (copy, regenerate, bookmark)
-- Enhanced error handling with actionable recovery options
+## Quick Start
 
-### ⚡ **Smart User Experience**
-- Character count validation with visual feedback
-- Keyboard shortcuts for power users
-- Connection status monitoring
-- Contextual welcome messages with page-aware suggestions
+<img width="360" height="545" alt="image" src="https://github.com/user-attachments/assets/201d84aa-dd52-4e18-88c5-a0e4a890b8b8" />
 
-## 🚀 Installation
 
-### For Users
-1. Download the extension from Chrome Web Store (coming soon)
-2. Click the Nation Assistant icon in your toolbar
-3. Configure your Crestal Network API key in settings
-4. Start analyzing web content with AI assistance
+1. **Install** the extension
+2. **Get API key** from [Crestal Network](https://www.crestal.network/blog/from-gm-to-sdk-nations-agent-api-is-here)
+3. **Click extension icon** → Settings ⚙️ → Enter API key
+4. **Start chatting** with any webpage!
 
-### For Developers
-1. Clone this repository
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode"
-4. Click "Load unpacked" and select the extension directory
-5. Configure your API key and start developing
+## Usage
 
-## 📖 Usage
+### Chat Interface
 
-### **Quick Start**
-1. **Install & configure** your Crestal Network API key
-2. **Click the extension icon** to open the AI sidebar
-3. **Ask questions** about any webpage you're viewing
-4. **Right-click selected text** for instant translation and analysis
+<img width="340" height="568" alt="image" src="https://github.com/user-attachments/assets/a29dc053-fc8c-4b57-9435-b487a88d2f36" />
 
-### **Documentation**
-- 📚 **[Complete Usage Guide](USAGE_GUIDE.md)** - Detailed instructions and features
-- ⚡ **[Quick Reference](QUICK_REFERENCE.md)** - Essential shortcuts and commands
-- 🎯 **[Best Practices](USAGE_GUIDE.md#-tips--best-practices)** - Tips for better results
+- Click the extension icon to open sidebar
+- Ask questions about the current page
+- Use smart action buttons: Analyze, Summarize, Key Insights
 
-### **Key Features**
-- **Smart Chat**: AI-powered analysis of any webpage with streaming responses
-- **Context Menu**: Right-click text for instant translation and analysis  
-- **Multi-language**: Auto-detect translation with 12+ language options
-- **Terminal UI**: Cyberpunk-inspired interface with smooth animations
+### Context Menu
+- Select text → Right-click → Nation Assistant
+- Choose: Analyze, Translate, or Chat with Selection
 
-## ⚙️ Configuration
+### Keyboard Shortcuts
+- `Ctrl+R` - Retry last action
+- `Ctrl+K` - Focus input
+- `Enter` - Send message
 
-### **API Setup**
-1. Get your API key from [Crestal Network](https://crestal.network)
-2. Open extension settings (⚙️ icon)
-3. Enter your API key and test connection
-4. Customize response parameters if needed
+## API Setup
 
-### **Customization Options**
-- **Model Selection**: Choose AI model (default: gpt-4.1-nano)
-- **Response Length**: Adjust max tokens (default: 300)
-- **Temperature**: Control response creativity (default: 0.7)
-- **Base URL**: Custom API endpoint (optional)
+1. Visit [Nation's Agent API Guide](https://www.crestal.network/blog/from-gm-to-sdk-nations-agent-api-is-here)
+2. Get your Crestal Network API key
+3. Open extension settings and enter your key
+4. Test connection and start using
 
-## 🔒 Security & Privacy
+## Development
 
-- **Local Processing**: Content analysis happens locally with secure API communication
-- **No Data Storage**: No personal data stored on external servers
-- **Input Sanitization**: XSS protection and content security policies
-- **Secure Communication**: All API calls use HTTPS encryption
-- **Privacy First**: Only page content you explicitly analyze is sent to AI
+```bash
+# Clone repository
+git clone https://github.com/v1ktorrr0x/nation-assistant.git
 
-## 🛠️ Technical Details
+# Load in Chrome
+# 1. Go to chrome://extensions/
+# 2. Enable Developer mode
+# 3. Click "Load unpacked"
+# 4. Select the extension directory
+```
 
-### **Architecture**
-- **Manifest V3**: Modern Chrome extension architecture
-- **Service Worker**: Efficient background processing
-- **Content Scripts**: Secure page content extraction
-- **Side Panel API**: Native Chrome sidebar integration
-
-### **Supported Browsers**
-- Chrome 88+ (Manifest V3 support required)
-- Chromium-based browsers with side panel support
-
-### **Dependencies**
-- Font Awesome 6.4.0 (icons)
-- Google Fonts (Inter, Space Mono)
-- Crestal Network API (AI processing)
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our contributing guidelines for details on:
-- Code style and standards
-- Testing requirements
-- Pull request process
-- Issue reporting
-
-## 📄 License
+## License
 
 MIT License - see LICENSE file for details
-
-## 🆘 Support
-
-- **Issues**: Report bugs or request features on GitHub
-- **Documentation**: Check our wiki for detailed guides
-- **Community**: Join our Discord for discussions and support
-
----
-
-**Made with ❤️ by the Nation Browser Suite team**

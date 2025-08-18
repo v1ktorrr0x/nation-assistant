@@ -4,10 +4,10 @@
 window.NATION_DEBUG = {
   enabled: false,
   components: {
-    sidepanel: true,
-    background: true,
-    llmService: true,
-    retry: true,
+    sidepanel: false,
+    background: false,
+    llmService: false,
+    retry: false,
     errors: true
   },
   

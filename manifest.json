@@ -36,23 +36,26 @@
   ],
   "action": {
     "default_title": "Nation Assistant - AI-Powered Web Analysis",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
+    "default_icon": "extlogo.png"
   },
   "icons": {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "extlogo.png",
+    "32": "extlogo.png",
+    "48": "extlogo.png",
+    "128": "extlogo.png"
   },
   "web_accessible_resources": [
     {
-      "resources": ["styles/nation-theme.css"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "styles/nation-theme.css",
+        "content.mjs",
+        "services/constants.js",
+        "libs/Readability.js",
+        "libs/turndown.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "commands": {
