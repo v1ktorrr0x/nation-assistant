@@ -1,4 +1,4 @@
-## Nation/Intentkit API – minimal flow
+## Intentkit/Nation API demo (minimal)
 
 ```mermaid
 sequenceDiagram
@@ -7,28 +7,27 @@ sequenceDiagram
   participant CS as Content Script
   participant LLM as Nation/Intentkit API
 
-  UI->>BG: chat/summarize/key-points/translate
+  UI->>BG: ask (chat/summarize/key-points)
   BG->>CS: GET_PAGE_CONTENT
-  CS-->>BG: pageContent (Markdown/text)
+  Note over CS: Scrape DOM → Readability + Turndown
+  CS-->>BG: Scraped + sanitized content (Markdown/text)
+  Note over BG: Validate input, cap length
   BG->>LLM: POST {baseUrl}/chat/completions (messages)
   LLM-->>BG: choices[0].message.content
-  BG-->>UI: response
+  Note over BG: Format/normalize response
+  BG-->>UI: Rendered answer
 ```
 
-### What to configure
-- **API Key**: `crestalApiKey` (Options page)
-- **Base URL**: `apiBaseUrl` (set to Intentkit/Nation-compatible endpoint)
+### Key steps
+- **Scrape**: The content script extracts readable content (Readability) and converts to Markdown (Turndown), with length limits.
+- **Sanitize**: Content is normalized and truncated to safe size; UI input is validated before sending.
+- **Send**: Background posts a Chat Completions request to the configured base URL with Bearer auth.
+- **Receive & format**: The response text is returned; when structured JSON is detected, it’s formatted for display.
 
-### Where things live
-- **Requests**: `services/llm-service.js` (`makeRequest`, `chatWithPage`, `summarizePage`, `listKeyPoints`, `translateText`)
-- **Coordination**: `background.js` (injects content script, calls LLM, returns result)
-- **UI messaging**: `sidepanel/api.js` (sends message to background, renders reply)
-- **Extraction**: `content.mjs` (Readability + Turndown → Markdown/text)
+### Configure
+- **API Key**: `crestalApiKey` (Options)
+- **Base URL**: `apiBaseUrl` (set your Intentkit/Nation-compatible endpoint)
 
-### Request shape (OpenAI-compatible)
-- POST `{baseUrl}/chat/completions`
-- Headers: `Authorization: Bearer <key>`, `Content-Type: application/json`
-- Body: `{ model, messages, max_tokens, temperature }`
-
-Tip: Switch providers by changing `apiBaseUrl` in Options; the message schema stays the same.
+### Request (OpenAI-compatible)
+- POST `{baseUrl}/chat/completions` with `{ model, messages, max_tokens, temperature }`
 
