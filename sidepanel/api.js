@@ -53,8 +53,14 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
 
 
 
-    // Store sanitized message for retry functionality (always store, even when regenerating)
-    updateState({ lastUserMessage: sanitizedMessage });
+    // Store sanitized message and track chat action for retry functionality
+    updateState({ 
+        lastUserMessage: sanitizedMessage,
+        lastAction: { 
+            type: 'chat', 
+            data: { message: sanitizedMessage } 
+        }
+    });
     logger.log('Stored last user message for retry:', sanitizedMessage);
 
     // Add user message (skip if regenerating)
@@ -131,15 +137,15 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
 }
 
 /**
- * Retry the last user message
+ * Retry the last action (chat message or smart action)
  */
 export function retryLastMessage() {
     try {
-        logger.log('Retry attempt - lastUserMessage:', state.lastUserMessage, 'isProcessing:', state.isProcessing);
+        logger.log('Retry attempt - lastAction:', state.lastAction, 'isProcessing:', state.isProcessing);
 
-        if (!state.lastUserMessage) {
-            logger.warn('No last message to retry');
-            addSystemMessage("No previous message to retry. Please send a new message.");
+        if (!state.lastAction) {
+            logger.warn('No last action to retry');
+            addSystemMessage("No previous action to retry. Please try again.");
             return;
         }
 
@@ -149,17 +155,29 @@ export function retryLastMessage() {
             return;
         }
 
-        logger.log('Retrying last message:', state.lastUserMessage);
+        logger.log('Retrying last action:', state.lastAction);
 
         // Add a small delay to ensure UI state is properly reset
         const timeoutId = setTimeout(() => {
             state.activeTimeouts.delete(timeoutId);
-            handleSendMessage(state.lastUserMessage, true);
+            
+            if (state.lastAction.type === 'chat') {
+                // Retry chat message
+                handleSendMessage(state.lastAction.data.message, true);
+            } else if (state.lastAction.type === 'smart') {
+                // Retry smart action - import dynamically to avoid circular imports
+                import('./ui.js').then(({ handleSmartAction }) => {
+                    handleSmartAction(state.lastAction.data.actionType);
+                }).catch(error => {
+                    logger.error('Failed to load smart action handler for retry:', error);
+                    addSystemMessage("Failed to retry smart action. Please try again manually.");
+                });
+            }
         }, 100);
         state.activeTimeouts.add(timeoutId);
     } catch (error) {
-        logger.error('Error retrying last message:', error);
-        addSystemMessage("Failed to retry message. Please try sending a new message.");
+        logger.error('Error retrying last action:', error);
+        addSystemMessage("Failed to retry action. Please try again.");
     }
 }
 

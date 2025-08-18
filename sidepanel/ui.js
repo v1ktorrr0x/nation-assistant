@@ -263,7 +263,7 @@ export function handleKeyDown(e) {
             elements.chatInput?.focus();
         } else if (e.key === 'r') {
             e.preventDefault();
-            if (state.lastUserMessage && !state.isProcessing) {
+            if (state.lastAction && !state.isProcessing) {
                 retryLastMessage();
             }
         } else if (e.key === 'n') {
@@ -594,8 +594,8 @@ function copyToClipboard(text, button) {
 function regenerateLastResponse(button) {
     if (state.isProcessing) return;
 
-    // Use the stored last user message for retry
-    if (!state.lastUserMessage) return;
+    // Use the stored last action for retry
+    if (!state.lastAction) return;
 
     // Enhanced loading state on button
     button.innerHTML = '<div class="enhanced-loading-spinner"></div>';
@@ -685,6 +685,14 @@ export function showWelcomeMessage() {
  * Handle smart action buttons by triggering appropriate backend actions
  */
 export function handleSmartAction(actionType) {
+    // Track this smart action for retry functionality
+    updateState({ 
+        lastAction: { 
+            type: 'smart', 
+            data: { actionType } 
+        } 
+    });
+
     switch (actionType) {
         case 'summarize':
             addSystemMessage('Summarizing the page...');

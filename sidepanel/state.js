@@ -8,6 +8,7 @@ export const state = {
   currentTabId: null,
   currentStreamingController: null,
   lastUserMessage: null,
+  lastAction: null, // Track last action for retry: { type: 'chat'|'smart', data: {...} }
   activeTimeouts: new Set(), // Track active timeouts for cleanup
   activeIntervals: new Set(), // Track active intervals for cleanup
   eventListeners: new Map(), // Track event listeners for cleanup
