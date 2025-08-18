@@ -33,6 +33,10 @@ AI-powered Chrome extension for intelligent web content analysis. Chat with any 
 - Use smart action buttons: Analyze, Summarize, Key Insights
 
 ### Context Menu
+
+<img width="743" height="283" alt="image" src="https://github.com/user-attachments/assets/8e63d96e-8a62-4f75-aa85-b92e4abf7b84" />
+
+
 - Select text → Right-click → Nation Assistant
 - Choose: Analyze, Translate, or Chat with Selection
 
