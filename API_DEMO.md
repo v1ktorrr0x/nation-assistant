@@ -1,21 +1,12 @@
 ## Intentkit/Nation API demo (minimal)
 
 ```mermaid
-sequenceDiagram
-  participant UI as Side Panel
-  participant BG as Background
-  participant CS as Content Script
-  participant LLM as Nation/Intentkit API
-
-  UI->>BG: ask (chat/summarize/key-points)
-  BG->>CS: GET_PAGE_CONTENT
-  Note over CS: Scrape DOM → Readability + Turndown
-  CS-->>BG: Scraped + sanitized content (Markdown/text)
-  Note over BG: Validate input, cap length
-  BG->>LLM: POST {baseUrl}/chat/completions (messages)
-  LLM-->>BG: choices[0].message.content
-  Note over BG: Format/normalize response
-  BG-->>UI: Rendered answer
+flowchart LR
+  A[Web Page] --> B[Content Script\nScrape → Markdown]
+  B --> C[Background\nSanitize / Validate]
+  C --> D[(Nation/Intentkit API)]
+  D --> E[Background\nFormat / Normalize]
+  E --> F[Side Panel UI\nRender]
 ```
 
 ### Key steps
