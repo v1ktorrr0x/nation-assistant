@@ -1236,63 +1236,87 @@
         }
 
         @keyframes glitch-trigger {
-            0%, 80% {
+
+            0%,
+            80% {
                 opacity: 0;
             }
-            81%, 92% {
+
+            81%,
+            92% {
                 opacity: 0.6;
             }
-            93%, 100% {
+
+            93%,
+            100% {
                 opacity: 0;
             }
         }
 
         @keyframes rgb-glitch-random {
-            0%, 78% {
+
+            0%,
+            78% {
                 filter: none;
             }
-            79%, 83% {
-                filter: 
-                    drop-shadow(-3px 0 0 rgba(255, 0, 0, 0.8))
-                    drop-shadow(2px 0 0 rgba(0, 255, 255, 0.4));
+
+            79%,
+            83% {
+                filter:
+                    drop-shadow(-3px 0 0 rgba(255, 0, 0, 0.8)) drop-shadow(2px 0 0 rgba(0, 255, 255, 0.4));
             }
-            84%, 89% {
+
+            84%,
+            89% {
                 filter: none;
             }
-            90%, 94% {
-                filter: 
-                    drop-shadow(2px 0 0 rgba(255, 0, 0, 0.5))
-                    drop-shadow(-3px 0 0 rgba(0, 255, 255, 0.7));
+
+            90%,
+            94% {
+                filter:
+                    drop-shadow(2px 0 0 rgba(255, 0, 0, 0.5)) drop-shadow(-3px 0 0 rgba(0, 255, 255, 0.7));
             }
-            95%, 100% {
+
+            95%,
+            100% {
                 filter: none;
             }
         }
 
         @keyframes scanlines-glitch-trigger {
-            0%, 75% {
+
+            0%,
+            75% {
                 opacity: 0;
                 transform: translate(0, 0);
                 filter: none;
             }
-            76%, 80% {
+
+            76%,
+            80% {
                 opacity: 0.8;
                 transform: translate(-2px, 0);
                 filter: hue-rotate(270deg) saturate(3) brightness(1.5);
                 mix-blend-mode: screen;
             }
-            81%, 85% {
+
+            81%,
+            85% {
                 opacity: 0;
                 transform: translate(0, 0);
                 filter: none;
             }
-            86%, 90% {
+
+            86%,
+            90% {
                 opacity: 0.7;
                 transform: translate(2px, 0);
                 filter: hue-rotate(90deg) saturate(3) brightness(1.5);
                 mix-blend-mode: multiply;
             }
-            91%, 100% {
+
+            91%,
+            100% {
                 opacity: 0;
                 transform: translate(0, 0);
                 filter: none;
@@ -1562,7 +1586,7 @@
             transform: translateY(-1px);
         }
 
-        .api-radio:checked + .api-label {
+        .api-radio:checked+.api-label {
             border-color: rgba(208, 255, 22, 0.6);
             background: rgba(208, 255, 22, 0.08);
         }
@@ -1581,7 +1605,7 @@
             font-size: 1.1rem;
         }
 
-        .api-radio:checked + .api-label .api-indicator {
+        .api-radio:checked+.api-label .api-indicator {
             opacity: 1;
             transform: scale(1.1);
         }
@@ -1937,14 +1961,25 @@
         }
 
         @keyframes subtleSpin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         @keyframes subtlePulse {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 0.8; }
-        }
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
         }
 
         /* Form Help */
@@ -2076,40 +2111,67 @@
         }
 
         @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         @keyframes pulse {
-            0%, 100% { 
+
+            0%,
+            100% {
                 transform: scale(1);
                 opacity: 1;
             }
-            50% { 
+
+            50% {
                 transform: scale(1.1);
                 opacity: 0.8;
             }
         }
 
         @keyframes bounce {
-            0% { 
+            0% {
                 transform: scale(0.3) rotate(-10deg);
                 opacity: 0;
             }
-            50% { 
+
+            50% {
                 transform: scale(1.1) rotate(5deg);
                 opacity: 1;
             }
-            100% { 
+
+            100% {
                 transform: scale(1) rotate(0deg);
                 opacity: 1;
             }
         }
 
         @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-            20%, 40%, 60%, 80% { transform: translateX(2px); }
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-2px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(2px);
+            }
         }
 
         /* Enhanced Button Glow Effects */
@@ -2129,37 +2191,43 @@
         }
 
         @keyframes successGlow {
-            0% { 
+            0% {
                 opacity: 0;
                 transform: scale(0.5);
             }
-            50% { 
+
+            50% {
                 opacity: 1;
                 transform: scale(1.2);
             }
-            100% { 
+
+            100% {
                 opacity: 0.6;
                 transform: scale(1);
             }
         }
 
         @keyframes errorGlow {
-            0% { 
+            0% {
                 opacity: 0;
                 transform: scale(0.8);
             }
-            100% { 
+
+            100% {
                 opacity: 0.8;
                 transform: scale(1);
             }
         }
 
         @keyframes loadingGlow {
-            0%, 100% { 
+
+            0%,
+            100% {
                 opacity: 0.3;
                 transform: scale(0.9);
             }
-            50% { 
+
+            50% {
                 opacity: 0.7;
                 transform: scale(1.1);
             }
@@ -2277,7 +2345,8 @@
                             </div>
                             <div class="api-selector-container">
                                 <div class="api-option">
-                                    <input type="radio" id="api-nation" name="api-provider" value="https://open.service.crestal.network/v1" class="api-radio" checked>
+                                    <input type="radio" id="api-nation" name="api-provider"
+                                        value="https://open.service.crestal.network/v1" class="api-radio" checked>
                                     <label for="api-nation" class="api-label">
                                         <div class="api-name">Nation.fun API</div>
                                         <div class="api-indicator">
@@ -2286,9 +2355,10 @@
                                     </label>
                                 </div>
                                 <div class="api-option">
-                                    <input type="radio" id="api-intentki" name="api-provider" value="https://ikai-open.service.crestal.network/v1" class="api-radio">
+                                    <input type="radio" id="api-intentki" name="api-provider"
+                                        value="https://ikai-open.service.crestal.network/v1" class="api-radio">
                                     <label for="api-intentki" class="api-label">
-                                        <div class="api-name">IntentKi.AI API</div>
+                                        <div class="api-name">IntentKit.AI API</div>
                                         <div class="api-indicator">
                                             <i class="fas fa-check-circle"></i>
                                         </div>
@@ -2319,7 +2389,7 @@
                                 </div>
                                 <div class="btn-glow"></div>
                             </button>
-                            
+
 
 
                             <button type="submit" class="action-btn save-btn primary">

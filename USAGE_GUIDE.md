@@ -34,6 +34,12 @@
 - **Follow-up questions** for deeper understanding
 - **Streaming responses** with terminal-style animation
 
+### Video Analysis (YouTube)
+- **Open YouTube video** → Click "Show transcript" button
+- **Select transcript text** → Right-click → Nation Assistant
+- **Choose action**: Analyze, Summarize, or Chat with Selection
+- **Get AI insights** about video content without watching entire video
+
 ## Keyboard Shortcuts
 
 | Key | Action |

@@ -8,6 +8,7 @@ AI-powered Chrome extension for intelligent web content analysis. Chat with any 
 - **Page Analysis** - Summarize, extract key points, or analyze content  
 - **Translation** - Right-click text to translate with auto-detection
 - **Context Menu** - Quick access without opening sidebar
+- **Video Analysis** - Analyze YouTube videos via transcripts (open transcript → right-click → analyze)
 
 ## Quick Start
 
