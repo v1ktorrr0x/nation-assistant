@@ -1,4 +1,4 @@
-## Intentkit/Nation API demo (minimal)
+## Intentkit/Nation API demo
 
 ```mermaid
 flowchart LR
