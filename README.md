@@ -1,6 +1,6 @@
 # Nation Assistant
 
-<img width="263" height="249" alt="extlogo" src="https://github.com/user-attachments/assets/6d1d6a49-271b-4ef8-aa6c-7f49fd2e3055" />
+<img width="160" height="151" alt="extlogo" src="https://github.com/user-attachments/assets/6d1d6a49-271b-4ef8-aa6c-7f49fd2e3055" />
 
 AI-powered Chrome extension for intelligent web content analysis. Chat with any webpage using AI through a clean sidebar interface.
 
@@ -14,7 +14,7 @@ AI-powered Chrome extension for intelligent web content analysis. Chat with any 
 
 ## Quick Start
 
-<img width="595" height="899" alt="image" src="https://github.com/user-attachments/assets/201d84aa-dd52-4e18-88c5-a0e4a890b8b8" />
+<img width="360" height="545" alt="image" src="https://github.com/user-attachments/assets/201d84aa-dd52-4e18-88c5-a0e4a890b8b8" />
 
 
 1. **Install** the extension
@@ -26,7 +26,7 @@ AI-powered Chrome extension for intelligent web content analysis. Chat with any 
 
 ### Chat Interface
 
-<img width="564" height="942" alt="image" src="https://github.com/user-attachments/assets/a29dc053-fc8c-4b57-9435-b487a88d2f36" />
+<img width="340" height="568" alt="image" src="https://github.com/user-attachments/assets/a29dc053-fc8c-4b57-9435-b487a88d2f36" />
 
 - Click the extension icon to open sidebar
 - Ask questions about the current page

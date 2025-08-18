@@ -51,58 +51,12 @@
   var BACKTICK = '`';
   var DOLLAR = '$';
 
-  var REGEX_ESCAPE_CHAR = new RegExp(ESCAPE_CHAR + '([' +
-    '\\\\' +
-    ASTERISK +
-    UNDERSCORE +
-    '{' + '}' +
-    '[' + ']' +
-    '\\(' + '\\)' +
-    '#' +
-    '+' +
-    '-' +
-    '.' +
-    '!' +
-    '>' +
-    '`' +
-    '])', 'g');
+  // Safer literal regex definitions to avoid bracket/paren escaping issues
+  var REGEX_ESCAPE_CHAR = /([\\`*_{}\[\]()#+\-.!>])/g;
 
-  var REGEX_SPECIAL_CHAR = new RegExp(
-    '(' +
-    '\\\\' + '|' +
-    ASTERISK + '|' +
-    UNDERSCORE + '|' +
-    '{' + '|' + '}' + '|' +
-    '[' + '|' + ']' + '|' +
-    '\\(' + '|' + '\\)' + '|' +
-    '#' + '|' +
-    '\\+' + '|' +
-    '-' + '|' +
-    '\\.' + '|' +
-    '!' + '|' +
-    '>' + '|' +
-    '`' +
-    ')', 'g'
-  );
+  var REGEX_SPECIAL_CHAR = /([\\*_{}\[\]()#+\-.!>`])/g;
 
-  var REGEX_SPECIAL_CHAR_WITH_DOLLAR = new RegExp(
-    '(' +
-    '\\\\' + '|' +
-    ASTERISK + '|' +
-    UNDERSCORE + '|' +
-    '{' + '|' + '}' + '|' +
-    '[' + '|' + ']' + '|' +
-    '\\(' + '|' + '\\)' + '|' +
-    '#' + '|' +
-    '\\+' + '|' +
-    '-' + '|' +
-    '\\.' + '|' +
-    '!' + '|' +
-    '>' + '|' +
-    '`' + '|' +
-    '\\$' +
-    ')', 'g'
-  );
+  var REGEX_SPECIAL_CHAR_WITH_DOLLAR = /([\\*_{}\[\]()#+\-.!>`$])/g;
 
   var leadingWhitespace = /^[ \r\n\t]/;
   var trailingWhitespace = /[ \r\n\t]$/;

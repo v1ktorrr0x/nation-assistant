@@ -501,6 +501,24 @@ export function addMessage(content, sender, save = true) {
             if (!messageEl.querySelector('.message-actions')) {
                 messageEl.appendChild(createMessageActions(content));
             }
+
+            // Click-to-copy for code blocks in this message
+            messageContent.addEventListener('click', (ev) => {
+                const pre = ev.target.closest('pre');
+                if (!pre || !messageContent.contains(pre)) return;
+                const text = pre.innerText || '';
+                if (!text) return;
+                navigator.clipboard.writeText(text).then(() => {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'streaming-speed-indicator visible';
+                    indicator.textContent = 'Copied code';
+                    messageContent.appendChild(indicator);
+                    setTimeout(() => {
+                        indicator.classList.remove('visible');
+                        setTimeout(() => indicator.remove(), 300);
+                    }, 1000);
+                }).catch(() => { /* ignore */ });
+            });
         }, 3000);
     } else {
         // System and user messages display immediately without streaming
@@ -622,8 +640,13 @@ function regenerateLastResponse(button) {
     // Store reset function for cleanup
     button.dataset.resetFunction = 'originalReset';
 
+    // Determine message to retry
+    const retryMessage = state.lastAction?.type === 'chat'
+        ? state.lastAction?.data?.message
+        : state.lastUserMessage;
+
     // Resend the last message
-    handleSendMessage(lastUserMessage.content, true).finally(() => {
+    handleSendMessage(retryMessage, true).finally(() => {
         setTimeout(originalReset, 500); // Small delay for better UX
     });
 }

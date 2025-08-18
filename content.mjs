@@ -33,19 +33,27 @@ if (!window.nationAssistantInjected) {
           codeBlockStyle: 'fenced'
         });
 
-        // Convert the article HTML to Markdown
-        let markdown = turndownService.turndown(article.content);
-
-        // Ensure markdown is a string
-        if (typeof markdown !== 'string') {
-          throw new Error('Turndown conversion failed');
+        // Convert the article HTML to Markdown (with safe fallback)
+        try {
+          let markdown = turndownService.turndown(article.content);
+          if (typeof markdown !== 'string') {
+            throw new Error('Turndown conversion failed');
+          }
+          if (markdown.length > MAX_TEXT_LENGTH) {
+            markdown = markdown.substring(0, MAX_TEXT_LENGTH) + '...';
+          }
+          return markdown;
+        } catch (mdError) {
+          // Fallback: extract readable text from the parsed article HTML
+          try {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = article.content || '';
+            const raw = (tmp.innerText || tmp.textContent || '').replace(/\s+/g, ' ').trim();
+            return raw.length > MAX_TEXT_LENGTH ? raw.substring(0, MAX_TEXT_LENGTH) + '...' : raw;
+          } catch {
+            throw mdError; // let outer fallback handle as last resort
+          }
         }
-
-        // Truncate if necessary
-        if (markdown.length > MAX_TEXT_LENGTH) {
-          markdown = markdown.substring(0, MAX_TEXT_LENGTH) + '...';
-        }
-        return markdown;
       }
       
       // If no article content found, throw error to trigger fallback
