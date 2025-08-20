@@ -123,7 +123,6 @@ function manageStorageQuota() {
     }
 }
 
-
 /**
  * Comprehensive cleanup function to prevent memory leaks
  */
@@ -147,7 +146,7 @@ export function cleanup() {
     // cleanupStaleResources(); // This is called in state.js
 
     // Reset processing state safely
-    setProcessing(false);
+    updateState({ isProcessing: false });
 
     logger.log('Cleanup completed');
 }
@@ -336,8 +335,7 @@ function navigateMessages(direction) {
 }
 
 export async function handleRefresh() {
-    // Stop any ongoing processes and reset the UI
-    cleanup();
+    if (state.isProcessing) return;
 
     try {
         // Clear chat messages from UI only (no history to clear)
