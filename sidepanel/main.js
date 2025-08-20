@@ -86,6 +86,13 @@ function setupEventListeners() {
         resetChat();
     });
 
+    // Add dismiss notification functionality
+    const dismissNotification = document.getElementById('dismiss-notification');
+    dismissNotification?.addEventListener('click', (e) => {
+        e.preventDefault();
+        hideNewTabIndicator();
+    });
+
     // Input container focus
     inputContainer?.addEventListener('click', (e) => {
         if (e.target !== chatInput) chatInput?.focus();

@@ -2483,6 +2483,88 @@ UTILITY COMPONENTS ===== */
   }
 }
 
+/* Tab Refresh Notification */
+.tab-refresh-notification {
+  margin: 16px 32px;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(208, 255, 22, 0.15);
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgba(208, 255, 22, 0.8);
+  transition: all 0.2s ease;
+}
+
+.notification-content:hover {
+  background: rgba(208, 255, 22, 0.05);
+  border-color: rgba(208, 255, 22, 0.25);
+}
+
+.notification-icon {
+  font-size: var(--font-size-sm);
+  opacity: 0.8;
+}
+
+.notification-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.notification-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-btn {
+  padding: 6px 12px;
+  background: rgba(208, 255, 22, 0.1);
+  border: 1px solid rgba(208, 255, 22, 0.2);
+  border-radius: 4px;
+  color: #D0FF16;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover {
+  background: rgba(208, 255, 22, 0.15);
+  border-color: rgba(208, 255, 22, 0.3);
+}
+
+.dismiss-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dismiss-btn:hover {
+  background: rgba(255, 107, 107, 0.1);
+  border-color: rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+}
+
 /* ==
 === ENHANCED TRANSLATION STYLES ===== */
 

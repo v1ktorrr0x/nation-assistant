@@ -23,7 +23,8 @@ export function initUI() {
         settingsBtn: document.getElementById(ELEMENT_IDS.SETTINGS_BTN),
         inputContainer: document.getElementById(ELEMENT_IDS.INPUT_CONTAINER),
         newTabIndicator: document.getElementById('new-tab-indicator'),
-        refreshLink: document.getElementById('refresh-link')
+        refreshLink: document.getElementById('refresh-link'),
+        dismissNotification: document.getElementById('dismiss-notification')
     };
 }
 
