@@ -71,7 +71,12 @@ class NationAssistantBackground {
         chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
                 this.ensureContentScript(tabId).catch(() => { });
+                chrome.runtime.sendMessage({ type: MESSAGE_TYPES.TAB_ACTIVATED, tabId }).catch(() => {});
             }
+        });
+
+        chrome.tabs.onActivated.addListener((activeInfo) => {
+            chrome.runtime.sendMessage({ type: MESSAGE_TYPES.TAB_ACTIVATED, tabId: activeInfo.tabId }).catch(() => {});
         });
 
         // Global keyboard shortcut handler

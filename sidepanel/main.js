@@ -105,38 +105,46 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// Listen for translation updates from background
+import { resetChat } from './ui.js';
+
+// Listen for updates from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === MESSAGE_TYPES.TRANSLATION_READY) {
-        // Remove loading message
-        const loadingMsg = document.getElementById('translation-loading');
-        if (loadingMsg) {
-            loadingMsg.remove();
-        }
+    switch (message.type) {
+        case MESSAGE_TYPES.TAB_ACTIVATED:
+            resetChat();
+            break;
+        case MESSAGE_TYPES.TRANSLATION_READY:
+            // Remove loading message
+            const loadingMsg = document.getElementById('translation-loading');
+            if (loadingMsg) {
+                loadingMsg.remove();
+            }
 
-        // SIMPLIFIED: Just treat translation as a regular AI response
-        const { translation, targetLanguage, detectedLanguage, smart } = message;
-        let translationText = `**Translation to ${targetLanguage}:**\n\n"${translation}"`;
+            // SIMPLIFIED: Just treat translation as a regular AI response
+            const { translation, targetLanguage, detectedLanguage, smart } = message;
+            let translationText = `**Translation to ${targetLanguage}:**\n\n"${translation}"`;
 
-        if (smart && detectedLanguage) {
-            translationText = `**Smart Translation** (${detectedLanguage} → ${targetLanguage}):\n\n"${translation}"`;
-        }
+            if (smart && detectedLanguage) {
+                translationText = `**Smart Translation** (${detectedLanguage} → ${targetLanguage}):\n\n"${translation}"`;
+            }
 
-        addAIMessage(translationText);
+            addAIMessage(translationText);
 
-        // Clear the context action
-        chrome.storage.local.remove([STORAGE_KEYS.CONTEXT_ACTION]);
-    } else if (message.type === MESSAGE_TYPES.TRANSLATION_ERROR) {
-        // Remove loading message
-        const loadingMsg = document.getElementById('translation-loading');
-        if (loadingMsg) {
-            loadingMsg.remove();
-        }
+            // Clear the context action
+            chrome.storage.local.remove([STORAGE_KEYS.CONTEXT_ACTION]);
+            break;
+        case MESSAGE_TYPES.TRANSLATION_ERROR:
+            // Remove loading message
+            const errorLoadingMsg = document.getElementById('translation-loading');
+            if (errorLoadingMsg) {
+                errorLoadingMsg.remove();
+            }
 
-        // Show error with AI streaming for consistency
-        addAIMessage(`❌ Translation failed: ${message.error}`);
+            // Show error with AI streaming for consistency
+            addAIMessage(`❌ Translation failed: ${message.error}`);
 
-        // Clear the context action
-        chrome.storage.local.remove([STORAGE_KEYS.CONTEXT_ACTION]);
+            // Clear the context action
+            chrome.storage.local.remove([STORAGE_KEYS.CONTEXT_ACTION]);
+            break;
     }
 });

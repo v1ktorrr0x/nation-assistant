@@ -4,7 +4,7 @@
 import { state, updateState } from './state.js';
 import { formatAIResponse } from './formatter.js';
 import { formatTime, escapeHtml, logger } from './utils.js';
-import { retryLastMessage, handleSendMessage, _sendPageAction } from './api.js';
+import { retryLastMessage, handleSendMessage, _sendPageAction, loadCurrentTab } from './api.js';
 import { MESSAGE_TYPES } from '../services/constants.js';
 import { ELEMENT_IDS } from '../services/constants.js';
 
@@ -334,13 +334,10 @@ function navigateMessages(direction) {
     messages[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-export async function handleRefresh() {
+export async function resetChat() {
     if (state.isProcessing) return;
 
     try {
-        // Clear chat messages from UI only (no history to clear)
-
-
         // Clear chat messages with smooth transition
         const { chatMessages } = elements;
         if (chatMessages) {
@@ -368,6 +365,10 @@ export async function handleRefresh() {
     } catch (error) {
         addAIMessage("❌ Failed to start new conversation. Please try again.");
     }
+}
+
+export function handleRefresh() {
+    resetChat();
 }
 
 export function showError(message, context = {}) {

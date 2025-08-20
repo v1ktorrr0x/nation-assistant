@@ -10,6 +10,7 @@ export const MESSAGE_TYPES = {
   SUMMARIZE_PAGE: 'summarizePage',
   EXPLAIN_PAGE: 'explainPage',
   LIST_KEY_POINTS: 'listKeyPoints',
+  TAB_ACTIVATED: 'tabActivated',
 };
 
 export const CONTEXT_MENU_IDS = {
