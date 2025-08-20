@@ -15,7 +15,8 @@ import {
     pauseStreamingAnimations,
     resumeStreamingAnimations,
     addAIMessage,
-    addSystemMessage
+    addSystemMessage,
+    showError
 } from './ui.js';
 import { loadCurrentTab, handleContextAction, hasContextAction, handleSendMessage } from './api.js';
 import { logger } from './utils.js';
@@ -27,6 +28,13 @@ async function init() {
         validateState();
 
         initUI();
+
+        // Check for API key first
+        const apiKeyResponse = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.CHECK_API_KEY });
+        if (!apiKeyResponse.data.isConfigured) {
+            showError('API key not configured. Please configure it in the options page.', { apiKey: true });
+            return; // Stop initialization
+        }
         setupEventListeners();
         await loadCurrentTab();
         await handleContextAction();
