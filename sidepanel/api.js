@@ -77,17 +77,18 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
     showTypingIndicator('SCANNING...', 'reading');
     setProcessing(true, isRegenerate ? 'REGENERATING...' : 'SCANNING...', 'reading');
 
+    const timeouts = [];
     try {
         // Progressive status updates with terminal-style messages
-        setTimeout(() => {
+        timeouts.push(setTimeout(() => {
             updateTypingIndicator('PROCESSING...', 'analyzing');
             setProcessing(true, 'PROCESSING...', 'analyzing');
-        }, 800);
+        }, 800));
 
-        setTimeout(() => {
+        timeouts.push(setTimeout(() => {
             updateTypingIndicator('GENERATING...', 'generating');
             setProcessing(true, 'GENERATING...', 'generating');
-        }, 1600);
+        }, 1600));
 
         const response = await chrome.runtime.sendMessage({
             type: MESSAGE_TYPES.CHAT_WITH_PAGE,
@@ -110,12 +111,14 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
             connection: error.message.includes('fetch') || error.message.includes('Failed to fetch')
         });
     } finally {
+        // Clear any pending status updates
+        timeouts.forEach(clearTimeout);
+
         // Comprehensive cleanup in finally block
         try {
             userMessageEl?.classList.remove('loading');
 
             // Always reset processing state
-            updateState({ isProcessing: false });
             setProcessing(false);
 
             // Re-enable input and focus
@@ -333,7 +336,6 @@ export async function _sendPageAction(action) {
         return;
     }
 
-    updateState({ isProcessing: true });
     setProcessing(true, processingMessage, 'analyzing');
 
     try {
@@ -353,7 +355,6 @@ export async function _sendPageAction(action) {
             connection: error.message.includes('fetch') || error.message.includes('Failed to fetch')
         });
     } finally {
-        updateState({ isProcessing: false });
         setProcessing(false);
         const chatInput = document.getElementById('chat-input');
         if (chatInput) {
