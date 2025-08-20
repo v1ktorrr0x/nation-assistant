@@ -231,10 +231,6 @@ class NationAssistantBackground {
                     sendResponse({ success: true, data: { reloaded: true } });
                     break;
 
-                case MESSAGE_TYPES.CHECK_API_KEY:
-                    sendResponse({ success: true, data: { isConfigured: !!this.llmService.apiKey } });
-                    break;
-
                 default:
                     sendResponse({ success: false, error: 'Unknown message type' });
             }
@@ -401,18 +397,16 @@ class NationAssistantBackground {
             
         } catch (error) {
             logger.error('Chat with page failed:', error.message);
-
-            // For API key errors, pass the original message so the frontend can handle it.
-            if (error.message.includes('API key')) {
-                return { success: false, error: error.message };
-            }
             
-            // Provide user-friendly error messages for other cases
+            // Provide user-friendly error messages
             let userMessage = error.message;
+            
             if (error.message.includes('Extension context invalidated')) {
                 userMessage = 'Extension needs to be reloaded. Please refresh the page and try again.';
             } else if (error.message.includes('No active tab')) {
                 userMessage = 'No active tab found. Please make sure you have a webpage open and try again.';
+            } else if (error.message.includes('API key')) {
+                userMessage = 'API configuration issue. Please check your settings and ensure your API key is valid.';
             } else if (error.message.includes('network') || error.message.includes('fetch')) {
                 userMessage = 'Network connection issue. Please check your internet connection and try again.';
             }
