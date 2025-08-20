@@ -21,8 +21,56 @@ export function initUI() {
         refreshBtn: document.getElementById(ELEMENT_IDS.REFRESH_BTN),
         helpBtn: document.getElementById(ELEMENT_IDS.HELP_BTN),
         settingsBtn: document.getElementById(ELEMENT_IDS.SETTINGS_BTN),
-        inputContainer: document.getElementById(ELEMENT_IDS.INPUT_CONTAINER)
+        inputContainer: document.getElementById(ELEMENT_IDS.INPUT_CONTAINER),
+        newTabIndicator: document.getElementById('new-tab-indicator'),
+        refreshLink: document.getElementById('refresh-link')
     };
+}
+
+export function showNewTabIndicator() {
+    if (elements.newTabIndicator) {
+        elements.newTabIndicator.style.display = 'block';
+    }
+}
+
+export function hideNewTabIndicator() {
+    if (elements.newTabIndicator) {
+        elements.newTabIndicator.style.display = 'none';
+    }
+}
+
+export async function resetChat() {
+    if (state.isProcessing) return;
+
+    try {
+        hideNewTabIndicator();
+        // Clear chat messages with smooth transition
+        const { chatMessages } = elements;
+        if (chatMessages) {
+            chatMessages.style.opacity = '0.5';
+            setTimeout(() => {
+                chatMessages.innerHTML = '';
+                chatMessages.style.opacity = '1';
+                showWelcomeMessage();
+            }, 150);
+        }
+
+        // Reload current tab info
+        await loadCurrentTab();
+
+        // Clear input
+        const { chatInput } = elements;
+        if (chatInput) {
+            chatInput.value = '';
+            handleInputChange();
+        }
+
+        // Focus input
+        setTimeout(() => chatInput?.focus(), 300);
+
+    } catch (error) {
+        addAIMessage("❌ Failed to start new conversation. Please try again.");
+    }
 }
 
 /**
@@ -332,39 +380,6 @@ function navigateMessages(direction) {
 
     messages[nextIndex].focus();
     messages[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-export async function resetChat() {
-    if (state.isProcessing) return;
-
-    try {
-        // Clear chat messages with smooth transition
-        const { chatMessages } = elements;
-        if (chatMessages) {
-            chatMessages.style.opacity = '0.5';
-            setTimeout(() => {
-                chatMessages.innerHTML = '';
-                chatMessages.style.opacity = '1';
-                showWelcomeMessage();
-            }, 150);
-        }
-
-        // Reload current tab info
-        await loadCurrentTab();
-
-        // Clear input
-        const { chatInput } = elements;
-        if (chatInput) {
-            chatInput.value = '';
-            handleInputChange();
-        }
-
-        // Focus input
-        setTimeout(() => chatInput?.focus(), 300);
-
-    } catch (error) {
-        addAIMessage("❌ Failed to start new conversation. Please try again.");
-    }
 }
 
 export function handleRefresh() {

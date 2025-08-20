@@ -15,7 +15,10 @@ import {
     pauseStreamingAnimations,
     resumeStreamingAnimations,
     addAIMessage,
-    addSystemMessage
+    addSystemMessage,
+    showNewTabIndicator,
+    hideNewTabIndicator,
+    resetChat
 } from './ui.js';
 import { loadCurrentTab, handleContextAction, hasContextAction, handleSendMessage } from './api.js';
 import { logger } from './utils.js';
@@ -66,7 +69,7 @@ async function init() {
 }
 
 function setupEventListeners() {
-    const { chatInput, sendBtn, refreshBtn, helpBtn, settingsBtn, inputContainer } = elements;
+    const { chatInput, sendBtn, refreshBtn, helpBtn, settingsBtn, inputContainer, refreshLink } = elements;
 
     // Chat input events
     chatInput?.addEventListener('input', handleInputChange);
@@ -78,6 +81,10 @@ function setupEventListeners() {
     refreshBtn?.addEventListener('click', handleRefresh);
     helpBtn?.addEventListener('click', showHelpDialog);
     settingsBtn?.addEventListener('click', () => chrome.runtime.openOptionsPage());
+    refreshLink?.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetChat();
+    });
 
     // Input container focus
     inputContainer?.addEventListener('click', (e) => {
@@ -105,13 +112,13 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-import { resetChat } from './ui.js';
-
-// Listen for updates from background script
+// Listen for translation updates from background
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     switch (message.type) {
         case MESSAGE_TYPES.TAB_ACTIVATED:
-            resetChat();
+            if (message.tabId !== state.currentTabId) {
+                showNewTabIndicator();
+            }
             break;
         case MESSAGE_TYPES.TRANSLATION_READY:
             // Remove loading message
