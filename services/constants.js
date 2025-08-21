@@ -8,7 +8,7 @@ export const MESSAGE_TYPES = {
   TRANSLATION_READY: 'TRANSLATION_READY',
   TRANSLATION_ERROR: 'TRANSLATION_ERROR',
   SUMMARIZE_PAGE: 'summarizePage',
-  EXPLAIN_PAGE: 'explainPage',
+  // EXPLAIN_PAGE: 'explainPage',
   LIST_KEY_POINTS: 'listKeyPoints',
   TAB_ACTIVATED: 'tabActivated',
 };

@@ -33,6 +33,12 @@ var Readability = function(doc, options) {
   this._articleSiteName = null;
   this._attempts = [];
 
+  // Default constants must be defined before they are used below
+  this.DEFAULT_MAX_ELEMS_TO_PARSE = 5000;
+  this.DEFAULT_N_TOP_CANDIDATES = 5;
+  this.DEFAULT_CHAR_THRESHOLD = 500;
+  this.CLASSES_TO_PRESERVE = ["page"];
+
   // Readability options
   this._debug = !!options.debug;
   this._maxElemsToParse = options.maxElemsToParse || this.DEFAULT_MAX_ELEMS_TO_PARSE;
@@ -152,12 +158,6 @@ var Readability = function(doc, options) {
   };
 
   this.UNLIKELY_ROLES = ["menu", "menubar", "complementary", "navigation", "alert", "alertdialog", "dialog"];
-
-  this.DEFAULT_MAX_ELEMS_TO_PARSE = 5000;
-  this.DEFAULT_N_TOP_CANDIDATES = 5;
-  this.DEFAULT_CHAR_THRESHOLD = 500;
-
-  this.CLASSES_TO_PRESERVE = ["page"];
 };
 
 Readability.prototype = {
@@ -296,10 +296,18 @@ Readability.prototype = {
    * @return string;
    */
   _concatClasses: function(elem) {
-    if (elem.className instanceof SVGAnimatedString) {
-      return "";
+    var cls = "";
+    if (typeof elem.className === "string") {
+      cls = elem.className;
+    } else if (elem.className && typeof elem.className.baseVal === "string") {
+      // Handle SVGAnimatedString
+      cls = elem.className.baseVal;
+    } else if (elem.classList && typeof elem.classList.value === "string") {
+      // Fallback for DOMTokenList
+      cls = elem.classList.value;
     }
-    return elem.className + " " + elem.id;
+    var id = (typeof elem.id === "string") ? elem.id : "";
+    return (cls + " " + id).trim();
   },
 
   /**
@@ -504,9 +512,10 @@ Readability.prototype = {
     // title or we decreased the number of words by more than 1 word,
     // use the original title.
     var curTitleWordCount = wordCount(curTitle);
+    var origTitleWordCount = wordCount((origTitle || "").replace(this.REGEXPS.normalize, ' ').trim());
     if (curTitleWordCount <= 4 &&
         (!titleHadHierarchicalSeparators ||
-         curTitleWordCount != wordCount(this.REGEXPS.normalize.exec(origTitle)) - 1)) {
+         curTitleWordCount != (origTitleWordCount - 1))) {
       curTitle = origTitle;
     }
 
@@ -1043,7 +1052,7 @@ Readability.prototype = {
       }
 
       // If the node has a "readability-ignore" class, we don't do anything.
-      if (node.className && node.className.indexOf("readability-ignore") !== -1) {
+      if (this._concatClasses(node).indexOf("readability-ignore") !== -1) {
         return null;
       }
 
@@ -1109,7 +1118,7 @@ Readability.prototype = {
       }
 
       // If the node has a "readability-ignore" class, we don't do anything.
-      if (node.className && node.className.indexOf("readability-ignore") !== -1) {
+      if (this._concatClasses(node).indexOf("readability-ignore") !== -1) {
         return null;
       }
 
@@ -1130,7 +1139,7 @@ Readability.prototype = {
       var node = allElements[nodeIndex];
 
       // If the node has a "readability-ignore" class, we don't do anything.
-      if (node.className && node.className.indexOf("readability-ignore") !== -1) {
+      if (this._concatClasses(node).indexOf("readability-ignore") !== -1) {
         continue;
       }
 
@@ -1591,23 +1600,23 @@ Readability.prototype = {
       var elementProperty = meta.getAttribute("property");
 
       if (elementName) {
-        var name = elementName.match(namePattern);
-        if (name) {
+        var nameMatch = elementName.match(namePattern);
+        if (nameMatch) {
           var content = meta.getAttribute("content");
           if (content) {
             // Convert to lower case and remove trailing whitespace
-            name = name.toLowerCase().replace(/\s+$/, "");
+            var name = nameMatch[0].toLowerCase().replace(/\s+$/, "");
             values[name] = content.trim();
           }
         }
       }
       if (elementProperty) {
-        var property = elementProperty.match(propertyPattern);
-        if (property) {
+        var propertyMatch = elementProperty.match(propertyPattern);
+        if (propertyMatch) {
           var content = meta.getAttribute("content");
           if (content) {
             // Convert to lower case and remove trailing whitespace
-            property = property.toLowerCase().replace(/\s+$/, "");
+            var property = propertyMatch[0].toLowerCase().replace(/\s+$/, "");
             values[property] = content.trim();
           }
         }

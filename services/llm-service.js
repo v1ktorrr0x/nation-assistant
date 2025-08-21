@@ -142,7 +142,12 @@ class LLMService {
    */
   formatResponse(rawResponse) {
     try {
-      const jsonResponse = JSON.parse(rawResponse);
+      const trimmed = typeof rawResponse === 'string' ? rawResponse.trim() : '';
+      const looksJson = (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
+      if (!looksJson) {
+        return rawResponse;
+      }
+      const jsonResponse = JSON.parse(trimmed);
 
       if (jsonResponse.page_overview) {
         let formatted = jsonResponse.page_overview;
@@ -208,7 +213,7 @@ Return format:
 - Use well-structured Markdown: short headings, bullet lists, and tables when useful.
 - When appropriate, include a "Guidelines" or "Recommendations" section tailored to the user's question and the page.
 - Include only sections that add value; avoid rigid templates and emojis.
-- Optionally append a compact JSON block at the end (as a fenced code block with language json) capturing: { "pageType": string, "tone": string, "sections": [{ "title": string, "items": string[] }], "guidelines": string[] }.
+ - Do not include JSON or code-fenced JSON blocks. Return only concise Markdown.
 
 Default to English unless explicitly requested otherwise.`
       },
@@ -307,7 +312,7 @@ Return format:
 - Use well-structured Markdown with clear headings and bullet lists.
 - Include a short "Guidelines" or "Next Steps" section when helpful, tailored to the page and the reader's likely goal.
 - Avoid rigid templates and emojis; include only sections that add value.
-- Optionally append a compact JSON block at the end (fenced as json) capturing: { "pageType": string, "overview": string, "sections": [{ "title": string, "items": string[] }], "guidelines": string[] }.
+ - Do not include JSON or code-fenced JSON blocks. Return only concise Markdown.
 
 Default to English unless requested otherwise.`
       },
@@ -344,7 +349,7 @@ Default to English unless requested otherwise.`
 Return format:
 - Use well-structured Markdown with brief headings and bullet points.
 - Include a "Guidelines/Actions" section when applicable.
-- Optionally append a compact JSON block at the end (fenced as json) capturing: { "pageType": string, "groups": [{ "title": string, "items": string[] }], "guidelines": string[] }.
+ - Do not include JSON or code-fenced JSON blocks. Return only concise Markdown.
 
 Default to English unless requested otherwise.`
       },
@@ -382,7 +387,7 @@ Return format:
 - Use well-structured Markdown with clear headings and bullet lists.
 - Include a "Guidelines" or "Recommendations" section for the reader when appropriate.
 - Avoid emojis and rigid templates.
-- Optionally append a compact JSON block at the end (fenced as json) capturing: { "pageType": string, "sections": [{ "title": string, "items": string[] }], "guidelines": string[] }.
+ - Do not include JSON or code-fenced JSON blocks. Return only concise Markdown.
 
 Default to English unless requested otherwise.`
       },

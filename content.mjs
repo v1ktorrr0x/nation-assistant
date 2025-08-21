@@ -5,78 +5,46 @@ import { MESSAGE_TYPES } from './services/constants.js';
 
 if (!window.nationAssistantInjected) {
   window.nationAssistantInjected = true;
-  const MAX_TEXT_LENGTH = 12000; // Increased limit for Markdown
+  const MAX_TEXT_LENGTH = 12000; // Limit output length
 
-  function getArticleMarkdown() {
+  function normalizeWhitespace(str) {
+    if (typeof str !== 'string') return '';
+    return str
+      .replace(/\r/g, '')
+      .replace(/[\t ]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  function getElementText(el) {
     try {
-      // Use a clone of the document to avoid affecting the live page
-      const documentClone = document.cloneNode(true);
-      
-      // Check if Readability is available
-      if (typeof Readability === 'undefined') {
-        throw new Error('Readability library not loaded');
-      }
-      
-      const article = new Readability(documentClone).parse();
+      return (el?.innerText || '').trim();
+    } catch (_e) {
+      return '';
+    }
+  }
 
-      if (article && article.content && typeof article.content === 'string') {
-        // Check if TurndownService is available
-        if (typeof TurndownService === 'undefined') {
-          throw new Error('TurndownService library not loaded');
-        }
-        
-        // Initialize Turndown service
-        const turndownService = new TurndownService({
-          headingStyle: 'atx',
-          hr: '---',
-          bulletListMarker: '*',
-          codeBlockStyle: 'fenced'
-        });
-
-        // Convert the article HTML to Markdown (with safe fallback)
-        try {
-          let markdown = turndownService.turndown(article.content);
-          if (typeof markdown !== 'string') {
-            throw new Error('Turndown conversion failed');
-          }
-          if (markdown.length > MAX_TEXT_LENGTH) {
-            markdown = markdown.substring(0, MAX_TEXT_LENGTH) + '...';
-          }
-          return markdown;
-        } catch (mdError) {
-          // Fallback: extract readable text from the parsed article HTML
-          try {
-            const tmp = document.createElement('div');
-            tmp.innerHTML = article.content || '';
-            const raw = (tmp.innerText || tmp.textContent || '').replace(/\s+/g, ' ').trim();
-            return raw.length > MAX_TEXT_LENGTH ? raw.substring(0, MAX_TEXT_LENGTH) + '...' : raw;
-          } catch {
-            throw mdError; // let outer fallback handle as last resort
-          }
-        }
-      }
-      
-      // If no article content found, throw error to trigger fallback
-      throw new Error('No readable content found by Readability');
-      
-    } catch (error) {
-      console.error('Error extracting article:', error);
-      
-      // Fallback to basic text extraction
-      try {
-        const text = document.body?.innerText || document.body?.textContent || '';
-        const cleaned = text.replace(/\s+/g, ' ').trim();
-        
-        if (!cleaned) {
-          return 'No content could be extracted from this page.';
-        }
-        
-        return cleaned.length > MAX_TEXT_LENGTH ? cleaned.substring(0, MAX_TEXT_LENGTH) + '...' : cleaned;
-      } catch (fallbackError) {
-        console.error('Fallback extraction also failed:', fallbackError);
-        return 'Unable to extract content from this page.';
+  function extractBasicContent() {
+    const candidates = [
+      document.querySelector('article'),
+      document.querySelector('main'),
+      document.body
+    ];
+    for (const el of candidates) {
+      const text = getElementText(el);
+      if (text && text.length > 0) {
+        const sourceTag = el?.tagName ? el.tagName.toLowerCase() : 'body';
+        return { text, source: sourceTag };
       }
     }
+    return { text: '', source: 'none' };
+  }
+
+  function getPageText() {
+    const { text, source } = extractBasicContent();
+    let cleaned = normalizeWhitespace(text);
+    if (cleaned.length > MAX_TEXT_LENGTH) cleaned = cleaned.slice(0, MAX_TEXT_LENGTH) + '...';
+    return { content: cleaned, usedSource: `basic:${source}` };
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -86,15 +54,39 @@ if (!window.nationAssistantInjected) {
     }
 
     if (message.type === MESSAGE_TYPES.GET_PAGE_CONTENT) {
-      const pageContent = getArticleMarkdown();
-      sendResponse({
-        pageContent,
-        metadata: {
-          title: document.title,
-          url: location.href
-        }
-      });
-      return;
+      try {
+        const { content, usedSource } = getPageText();
+        sendResponse({
+          pageContent: content,
+          metadata: {
+            title: document.title,
+            url: location.href,
+            readableTitle: null,
+            byline: null,
+            siteName: null,
+            length: content.length,
+            usedSource,
+            attempts: []
+          },
+          error: content ? null : 'No content found'
+        });
+      } catch (err) {
+        sendResponse({
+          pageContent: '',
+          metadata: {
+            title: document.title,
+            url: location.href,
+            readableTitle: null,
+            byline: null,
+            siteName: null,
+            length: 0,
+            usedSource: 'basic:error',
+            attempts: []
+          },
+          error: err?.message || 'Content extraction failed'
+        });
+      }
+      return false;
     }
 
     sendResponse({ error: 'Unknown message type' });

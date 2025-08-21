@@ -96,7 +96,50 @@ class AIResponseFormatter {
   processWithMinimalChanges(content) {
     const lines = content.split('\n');
     const processedLines = [];
-    let listStack = []; // Track nested lists
+    // Track nested lists as a stack of { type: 'ul'|'ol' }
+    let listStack = [];
+    // Track last pushed list item index for continuation lines
+    let lastListItemIndex = -1;
+    // Track blockquote state
+    let inBlockquote = false;
+    // Maintain a separate list stack for lists inside blockquotes
+    let bqListStack = [];
+    let lastBqListItemIndex = -1;
+
+    const closeAllLists = () => {
+      while (listStack.length > 0) {
+        const closing = listStack.pop();
+        processedLines.push(`</${closing.type}>`);
+      }
+      lastListItemIndex = -1;
+    };
+
+    const ensureListAtLevel = (level, desiredType) => {
+      // Shrink stack to desired level (stack length should be level+1)
+      while (listStack.length > level + 1) {
+        const closing = listStack.pop();
+        processedLines.push(`</${closing.type}>`);
+      }
+
+      // If same depth but type changed, switch the list type
+      if (listStack.length === level + 1) {
+        const top = listStack[listStack.length - 1];
+        if (top.type !== desiredType) {
+          // Close current list and open new one of desired type
+          listStack.pop();
+          processedLines.push(`</${top.type}>`);
+          processedLines.push(`<${desiredType}>`);
+          listStack.push({ type: desiredType });
+        }
+        return;
+      }
+
+      // If we need to go deeper, open lists until we reach level
+      while (listStack.length < level + 1) {
+        processedLines.push(`<${desiredType}>`);
+        listStack.push({ type: desiredType });
+      }
+    };
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -104,83 +147,168 @@ class AIResponseFormatter {
 
       // Handle code blocks
       if (trimmed.startsWith('```')) {
-        // Close all open lists
-        while (listStack.length > 0) {
-          processedLines.push('</ul>');
-          listStack.pop();
+        // Close blockquote and lists before code block
+        if (inBlockquote) {
+          processedLines.push('</blockquote>');
+          inBlockquote = false;
         }
+        closeAllLists();
         const codeBlockResult = this.handleCodeBlock(line, lines, i);
         processedLines.push(codeBlockResult.html);
         i += codeBlockResult.skipLines - 1;
         continue;
       }
 
-      // Handle bullet points with nesting
-      const bulletMatch = line.match(/^(\s*)[-*+•] (.+)$/);
-      if (bulletMatch) {
-        const indent = bulletMatch[1].length;
-        const content = this.processInlineFormatting(bulletMatch[2]);
-
-        // Determine nesting level (every 2 spaces = 1 level)
-        const level = Math.floor(indent / 2);
-
-        // Adjust list stack to match current level
-        while (listStack.length > level + 1) {
-          processedLines.push('</ul>');
-          listStack.pop();
+      // Handle horizontal rule
+      if (/^---+$/.test(trimmed)) {
+        if (inBlockquote) {
+          processedLines.push('</blockquote>');
+          inBlockquote = false;
         }
-
-        // Open new list if needed
-        if (listStack.length === level) {
-          processedLines.push('<ul>');
-          listStack.push('ul');
-        }
-
-        processedLines.push(`<li>${content}</li>`);
+        closeAllLists();
+        processedLines.push('<hr>');
         continue;
       }
 
       // Handle headers
-      const headerMatch = trimmed.match(/^(#{1,6}) (.+)$/);
+      const headerMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
       if (headerMatch) {
-        // Close all open lists
-        while (listStack.length > 0) {
-          processedLines.push('</ul>');
-          listStack.pop();
+        if (inBlockquote) {
+          processedLines.push('</blockquote>');
+          inBlockquote = false;
         }
+        closeAllLists();
         const level = headerMatch[1].length;
-        const content = this.processInlineFormatting(headerMatch[2]);
-        processedLines.push(`<h${level}>${content}</h${level}>`);
+        const hContent = this.processInlineFormatting(headerMatch[2]);
+        processedLines.push(`<h${level}>${hContent}</h${level}>`);
         continue;
       }
 
-      // Handle empty lines
-      if (!trimmed) {
-        // Close all open lists on empty line
-        while (listStack.length > 0) {
-          processedLines.push('</ul>');
-          listStack.pop();
+      // Handle lists (bulleted and numbered)
+      const bulletMatch = line.match(/^(\s*)[-*+•]\s+(.+)$/);
+      const numberMatch = line.match(/^(\s*)\d+\.\s+(.+)$/);
+      if (bulletMatch || numberMatch) {
+        // Normalize indent: tabs count as 2 spaces
+        const indentStr = (bulletMatch ? bulletMatch[1] : numberMatch[1]).replace(/\t/g, '  ');
+        const indent = indentStr.length;
+        const level = Math.floor(indent / 2);
+        const desiredType = bulletMatch ? 'ul' : 'ol';
+        const itemContent = this.processInlineFormatting(bulletMatch ? bulletMatch[2] : numberMatch[2]);
+
+        // If entering a list, close blockquote
+        if (inBlockquote) {
+          processedLines.push('</blockquote>');
+          inBlockquote = false;
         }
+
+        // Ensure correct list stack
+        ensureListAtLevel(level, desiredType);
+
+        // Add list item
+        processedLines.push(`<li>${itemContent}</li>`);
+        lastListItemIndex = processedLines.length - 1;
+        continue;
+      }
+
+      // Handle blockquotes (lines starting with "> ")
+      const blockquoteMatch = line.match(/^>\s?(.*)$/);
+      if (blockquoteMatch) {
+        // Close any top-level lists before entering blockquote context
+        closeAllLists();
+        if (!inBlockquote) {
+          processedLines.push('<blockquote>');
+          inBlockquote = true;
+        }
+
+        const inner = blockquoteMatch[1] || '';
+        const innerTrimmed = inner.trim();
+
+        // Code fences inside blockquotes are not fully supported; treat as paragraph
+        // Support headers within blockquote
+        const bqHeader = innerTrimmed.match(/^(#{1,6})\s+(.+)$/);
+        if (bqHeader) {
+          closeBQLists();
+          const hLevel = bqHeader[1].length;
+          const hContent = this.processInlineFormatting(bqHeader[2]);
+          processedLines.push(`<h${hLevel}>${hContent}</h${hLevel}>`);
+          continue;
+        }
+
+        // Horizontal rule in blockquote
+        if (/^---+$/.test(innerTrimmed)) {
+          closeBQLists();
+          processedLines.push('<hr>');
+          continue;
+        }
+
+        // Lists within blockquote
+        const bqBullet = inner.match(/^(\s*)[-*+•]\s+(.+)$/);
+        const bqNumber = inner.match(/^(\s*)\d+\.\s+(.+)$/);
+        if (bqBullet || bqNumber) {
+          const indentStr = (bqBullet ? bqBullet[1] : bqNumber[1]).replace(/\t/g, '  ');
+          const indent = indentStr.length;
+          const level = Math.floor(indent / 2);
+          const desiredType = bqBullet ? 'ul' : 'ol';
+          ensureBQListAtLevel(level, desiredType);
+          const itemContent = this.processInlineFormatting(bqBullet ? bqBullet[2] : bqNumber[2]);
+          processedLines.push(`<li>${itemContent}</li>`);
+          lastBqListItemIndex = processedLines.length - 1;
+          continue;
+        }
+
+        // Continuation lines for list items within blockquote
+        const bqIndentOnly = inner.match(/^(\s+)(.+)$/);
+        if (bqListStack.length > 0 && bqIndentOnly && lastBqListItemIndex >= 0) {
+          const contText = this.processInlineFormatting(bqIndentOnly[2].trim());
+          processedLines[lastBqListItemIndex] = processedLines[lastBqListItemIndex].replace(/<\/li>$/, `<br>${contText}</li>`);
+          continue;
+        }
+
+        // Regular paragraph within blockquote
+        closeBQLists();
+        const bqContent = this.processInlineFormatting(innerTrimmed);
+        processedLines.push(`<p>${bqContent}</p>`);
+        continue;
+      }
+
+      // Handle empty lines: preserve spacing but do not force-close lists
+      if (!trimmed) {
         processedLines.push('');
         continue;
       }
 
       // Handle regular content
-      // Close all open lists
-      while (listStack.length > 0) {
-        processedLines.push('</ul>');
-        listStack.pop();
+      // If inside blockquote and current line isn't a blockquote, close it
+      if (inBlockquote) {
+        // Close any open blockquote lists before ending blockquote
+        closeBQLists();
+        processedLines.push('</blockquote>');
+        inBlockquote = false;
       }
 
+      // Continuation lines for list items: indented non-list lines while a list is open
+      const indentOnlyMatch = line.match(/^(\s+)(.+)$/);
+      if (listStack.length > 0 && indentOnlyMatch && lastListItemIndex >= 0) {
+        const contText = this.processInlineFormatting(indentOnlyMatch[2].trim());
+        // Append to the last <li> before its closing tag
+        processedLines[lastListItemIndex] = processedLines[lastListItemIndex].replace(/<\/li>$/, `<br>${contText}</li>`);
+        continue;
+      }
+
+      // Otherwise, close lists and add paragraph
+      closeAllLists();
       const formatted = this.processInlineFormatting(trimmed);
       processedLines.push(`<p>${formatted}</p>`);
     }
 
-    // Close any remaining lists
-    while (listStack.length > 0) {
-      processedLines.push('</ul>');
-      listStack.pop();
+    // Close open blockquote and lists at the end
+    if (inBlockquote) {
+      closeBQLists();
+      processedLines.push('</blockquote>');
+      inBlockquote = false;
     }
+
+    closeAllLists();
 
     return processedLines.join('\n');
   }
@@ -358,17 +486,42 @@ class AIResponseFormatter {
   processInlineFormatting(text) {
     if (!text) return '';
 
-    return text
-      // Process code first to avoid conflicts
+    // Start with the original text and progressively apply safe transforms
+    let result = text
+      // Process inline code first to avoid conflicts
       .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+      // Convert explicit markdown links next
+      .replace(this.patterns.markdownLink, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-      // Links (only explicit markdown links and URLs)
-      .replace(this.patterns.markdownLink, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-      .replace(this.patterns.autoLink, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+    // Auto-link bare URLs only outside existing <a> and <code> tags
+    result = this.autoLinkOutsideTags(result);
 
-      // Basic text formatting - improved patterns to avoid breaking within words
+    // Basic text formatting - avoid breaking within words
+    result = result
       .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+
+    return result;
+  }
+
+  /**
+   * Auto-link URLs but skip inside existing <a> and <code> tags to avoid corrupting attributes/text
+   */
+  autoLinkOutsideTags(text) {
+    if (!text) return '';
+
+    // Split content into segments keeping existing anchors and code spans intact
+    const segments = text.split(/(<a\b[^>]*>[\s\S]*?<\/a>|<code\b[^>]*>[\s\S]*?<\/code>)/gi);
+
+    return segments
+      .map(part => {
+        if (!part) return '';
+        // If the segment is an existing anchor or code block, return as-is
+        if (/^<a\b/i.test(part) || /^<code\b/i.test(part)) return part;
+        // Otherwise, auto-link bare URLs in this plain-text segment
+        return part.replace(this.patterns.autoLink, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+      })
+      .join('');
   }
 
   /**

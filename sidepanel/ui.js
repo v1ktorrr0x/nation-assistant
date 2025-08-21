@@ -155,18 +155,10 @@ export function updateInputValidation() {
  * Manage storage quota to prevent exhaustion
  */
 function manageStorageQuota() {
-    const MAX_HISTORY_SIZE = 100; // Maximum number of messages to keep
-    const MAX_MESSAGE_LENGTH = 10000; // Maximum length per message
-
+    // No-op: chat history is not persisted; nothing to manage.
+    // Kept for backwards compatibility to avoid runtime errors.
     try {
-        // Storage management simplified without chat history
-        const STORAGE_WARNING_THRESHOLD = 4 * 1024 * 1024; // 4MB warning threshold
-
-        if (estimatedSize > STORAGE_WARNING_THRESHOLD) {
-            logger.warn(`Chat history approaching storage limit: ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`);
-            // Could show user warning here if needed
-        }
-
+        return;
     } catch (error) {
         logger.error('Error managing storage quota:', error);
     }
@@ -544,11 +536,7 @@ export function addMessage(content, sender, save = true) {
 
     smoothScrollToBottom();
 
-    // Save to history with quota management
-    if (save) {
-        // Messages are no longer saved to history - each chat is independent
-        manageStorageQuota();
-    }
+    // History is not persisted; skipping storage quota checks
 
     return messageEl;
 }
@@ -657,12 +645,15 @@ function regenerateLastResponse(button) {
     // Store reset function for cleanup
     button.dataset.resetFunction = 'originalReset';
 
-    // Determine message to retry
-    const retryMessage = state.lastAction?.type === 'chat'
-        ? state.lastAction?.data?.message
-        : state.lastUserMessage;
+    // If last action was a smart action (summarize/keypoints/analyze), delegate to unified retry
+    if (state.lastAction.type === 'smart') {
+        retryLastMessage();
+        setTimeout(originalReset, 500);
+        return;
+    }
 
-    // Resend the last message
+    // Otherwise, resend the last chat message
+    const retryMessage = state.lastAction?.data?.message || state.lastUserMessage || '';
     handleSendMessage(retryMessage, true).finally(() => {
         setTimeout(originalReset, 500); // Small delay for better UX
     });

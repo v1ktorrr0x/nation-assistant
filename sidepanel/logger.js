@@ -1,7 +1,7 @@
 // sidepanel/logger.js
 'use strict';
 
-const DEBUG = false;
+const DEBUG = true;
 
 export const logger = {
     log: (message, ...args) => {
