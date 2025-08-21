@@ -23,6 +23,16 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
 
     logger.log('handleSendMessage called:', { messageText, isRegenerate, message, isProcessing: state.isProcessing });
 
+    // Prepare optional selected text context from context menu (do NOT clear yet)
+    let selectedText = undefined;
+    try {
+        const ctx = await chrome.storage.local.get([STORAGE_KEYS.CONTEXT_ACTION]);
+        const ca = ctx.contextAction;
+        if (ca && ca.action === 'context') {
+            selectedText = ca.text || ca.originalText || undefined;
+        }
+    } catch (_) {}
+
     // Enhanced race condition protection
     if (!message || state.isProcessing) {
         logger.warn('Message send blocked:', { hasMessage: !!message, isProcessing: state.isProcessing });
@@ -92,7 +102,8 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
         const response = await chrome.runtime.sendMessage({
             type: MESSAGE_TYPES.CHAT_WITH_PAGE,
             tabId: state.currentTabId,
-            question: sanitizedMessage
+            question: sanitizedMessage,
+            selectedText
         });
 
         hideTypingIndicator();
@@ -112,6 +123,8 @@ export async function handleSendMessage(messageText = null, isRegenerate = false
     } finally {
         // Comprehensive cleanup in finally block
         try {
+            // Clear passive context after first send
+            try { chrome.storage.local.remove([STORAGE_KEYS.CONTEXT_ACTION]); } catch (_) {}
             userMessageEl?.classList.remove('loading');
 
             // Always reset processing state
@@ -240,15 +253,26 @@ export async function handleContextAction() {
                 case 'translate':
                     await handleTranslateAction(contextAction);
                     break;
+                case 'context': {
+                    // Passive context: show a truncated reference of the selected text only
+                    const text = (contextAction.text || contextAction.originalText || '').trim();
+                    if (text) {
+                        const maxLen = 220;
+                        const shown = text.length > maxLen ? `${text.slice(0, maxLen)}…` : text;
+                        addSystemMessage(`Selected context: "${shown}"`);
+                    }
+                    // Don't auto-run anything, and keep CONTEXT_ACTION until first send
+                    break;
+                }
                 case 'analyze':
                     handleListKeyPointsAction(contextAction);
                     break;
                 case 'summarize':
                     handleSummarizeAction(contextAction);
                     break;
-                case 'explain':
-                    handleExplainAction(contextAction);
-                    break;
+                // case 'explain':
+                //     handleExplainAction(contextAction);
+                //     break;
                 default:
                     // Generic context action - handle legacy format
                     if (contextAction.text || contextAction.originalText) {
@@ -258,8 +282,8 @@ export async function handleContextAction() {
                     }
             }
 
-            // Don't clear context action here for translations - let the message handlers do it
-            if (contextAction.action !== 'translate') {
+            // Don't clear context action here for translations or passive context
+            if (contextAction.action !== 'translate' && contextAction.action !== 'context') {
                 chrome.storage.local.remove([STORAGE_KEYS.CONTEXT_ACTION]);
             }
         } catch (actionError) {
@@ -372,15 +396,15 @@ function handleSummarizeAction(contextAction) {
     });
 }
 
-function handleExplainAction(contextAction) {
-    const { text } = contextAction;
-    addSystemMessage(`Explaining: "${text}"`);
-    _sendPageAction({
-        type: MESSAGE_TYPES.EXPLAIN_PAGE,
-        payload: { selectedText: text },
-        processingMessage: 'EXPLAINING...'
-    });
-}
+// function handleExplainAction(contextAction) {
+//     const { text } = contextAction;
+//     addSystemMessage(`Explaining: "${text}"`);
+//     _sendPageAction({
+//         type: MESSAGE_TYPES.EXPLAIN_PAGE,
+//         payload: { selectedText: text },
+//         processingMessage: 'EXPLAINING...'
+//     });
+// }
 
 function handleListKeyPointsAction(contextAction) {
     addSystemMessage('Extracting key points from the page...');
