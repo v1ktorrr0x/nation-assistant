@@ -13,7 +13,7 @@ import {
 
 
 // Enable comprehensive logging for debugging
-const DEBUG = false;
+const DEBUG = true;
 const logger = {
   log: (message, ...args) => {
     if (DEBUG) console.log(`[Background] ${message}`, ...args);
@@ -214,9 +214,9 @@ class NationAssistantBackground {
                     sendResponse(await this.handleListKeyPoints(message));
                     break;
 
-                case MESSAGE_TYPES.EXPLAIN_PAGE:
-                    sendResponse(await this.handleExplainPage(message));
-                    break;
+                // case MESSAGE_TYPES.EXPLAIN_PAGE:
+                //     sendResponse(await this.handleExplainPage(message));
+                //     break;
 
                 case MESSAGE_TYPES.TEST_CONNECTION:
                     if (message.testConfig) {
@@ -262,19 +262,26 @@ class NationAssistantBackground {
 
             switch (menuItemId) {
                 case CONTEXT_MENU_IDS.ANALYZE_PAGE:
-                    await chrome.sidePanel.open({ tabId: tab.id });
+                    // Call sidePanel.open immediately within the user gesture
+                    chrome.sidePanel.open({ tabId: tab.id }).catch(err => {
+                        console.error('[Background] Failed to open sidepanel:', err);
+                    });
                     break;
 
                 case CONTEXT_MENU_IDS.CHAT_WITH_SELECTION:
-                    await chrome.storage.local.set({
+                    // Open side panel immediately to satisfy user gesture requirement
+                    chrome.sidePanel.open({ tabId: tab.id }).catch(err => {
+                        console.error('[Background] Failed to open sidepanel:', err);
+                    });
+                    // Perform async storage update without awaiting (does not block gesture)
+                    chrome.storage.local.set({
                         [STORAGE_KEYS.CONTEXT_ACTION]: {
-                            action: 'analyze',
+                            action: 'context',
                             text: selectionText,
                             timestamp: Date.now(),
                             tabId: tab.id
                         }
-                    });
-                    await chrome.sidePanel.open({ tabId: tab.id });
+                    }).catch(() => {});
                     break;
                 case CONTEXT_MENU_IDS.TRANSLATE_AUTO:
                     this.startSmartTranslation(selectionText, tab);
@@ -324,7 +331,7 @@ class NationAssistantBackground {
             // Inject content script
             await chrome.scripting.executeScript({
                 target: { tabId },
-                files: ['libs/Readability.js', 'libs/turndown.js', 'debug-config.js', 'content.js']
+                files: ['debug-config.js', 'content.js']
             });
 
             // Wait for injection to complete
@@ -366,7 +373,7 @@ class NationAssistantBackground {
      * Handle chat with page with enhanced error handling
      */
     async handleChatWithPage(message) {
-        const { tabId, question = "" } = message;
+        const { tabId, question = "", selectedText } = message;
 
         try {
             const tab = tabId ? await chrome.tabs.get(tabId) : await this.getActiveTab();
@@ -387,16 +394,22 @@ class NationAssistantBackground {
             );
             
             const response = await Promise.race([contentPromise, timeoutPromise]);
-            
-            if (!response?.pageContent) {
-                throw new Error('Unable to extract content from this page. The page might be empty or still loading.');
+            logger.debug('Content extraction response metadata:', response?.metadata);
+            if (response?.error) logger.error('Content extraction error detail:', response.error);
+
+            if (!response || typeof response.pageContent !== 'string' || response.pageContent.trim().length === 0) {
+                const reason = response?.error ? ` Extraction error: ${response.error}` : '';
+                throw new Error('Unable to extract content from this page.' + reason);
             }
 
             if (response.pageContent.trim().length < 10) {
-                throw new Error('This page appears to have very little content to analyze. Try a different page with more text.');
+                const reason = response?.error ? ` Extraction error: ${response.error}` : '';
+                throw new Error('This page appears to have very little content to analyze.' + reason);
             }
 
-            const llmResponse = await this.llmService.chatWithPage(response.pageContent, question);
+            // Merge selectedText (if provided) into metadata for downstream prompt construction
+            const mergedMetadata = { ...(response?.metadata || {}), selectedText };
+            const llmResponse = await this.llmService.chatWithPage(response.pageContent, question, mergedMetadata);
 
             return { success: true, data: { response: llmResponse } };
             
@@ -421,7 +434,7 @@ class NationAssistantBackground {
     }
 
     /**
-     * A generic handler for page actions like summarize, explain, etc.
+     * A generic handler for page actions like summarize, list key points, etc.
      */
     async _handlePageAction(message, actionCallback) {
         const { tabId, ...rest } = message;
@@ -437,14 +450,18 @@ class NationAssistantBackground {
             );
 
             const response = await Promise.race([contentPromise, timeoutPromise]);
-            if (!response?.pageContent) {
-                throw new Error('Unable to extract content from this page.');
+            logger.debug('Content extraction response metadata:', response?.metadata);
+            if (response?.error) logger.error('Content extraction error detail:', response.error);
+            if (!response || typeof response.pageContent !== 'string' || response.pageContent.trim().length === 0) {
+                const reason = response?.error ? ` Extraction error: ${response.error}` : '';
+                throw new Error('Unable to extract content from this page.' + reason);
             }
-             if (response.pageContent.trim().length < 10) {
-                throw new Error('This page appears to have very little content to analyze.');
+            if (response.pageContent.trim().length < 10) {
+                const reason = response?.error ? ` Extraction error: ${response.error}` : '';
+                throw new Error('This page appears to have very little content to analyze.' + reason);
             }
 
-            const llmResponse = await actionCallback(response.pageContent, rest);
+            const llmResponse = await actionCallback(response.pageContent, response.metadata, rest);
             return { success: true, data: { response: llmResponse } };
         } catch (error) {
             logger.error('Page action failed:', error.message);
@@ -456,8 +473,8 @@ class NationAssistantBackground {
      * Handles summarizing the page
      */
     async handleSummarizePage(message) {
-        return this._handlePageAction(message, (pageContent) => {
-            return this.llmService.summarizePage(pageContent);
+        return this._handlePageAction(message, (pageContent, metadata) => {
+            return this.llmService.summarizePage(pageContent, metadata);
         });
     }
 
@@ -465,19 +482,19 @@ class NationAssistantBackground {
      * Handles listing key points from the page
      */
     async handleListKeyPoints(message) {
-        return this._handlePageAction(message, (pageContent) => {
-            return this.llmService.listKeyPoints(pageContent);
+        return this._handlePageAction(message, (pageContent, metadata) => {
+            return this.llmService.listKeyPoints(pageContent, metadata);
         });
     }
 
-    /**
-     * Handles explaining a selection from the page
-     */
-    async handleExplainPage(message) {
-        return this._handlePageAction(message, (pageContent, { selectedText }) => {
-            return this.llmService.explainPage(pageContent, selectedText);
-        });
-    }
+    // /**
+    //  * Handles explaining a selection from the page
+    //  */
+    // async handleExplainPage(message) {
+    //     return this._handlePageAction(message, (pageContent, { selectedText }) => {
+    //         return this.llmService.explainPage(pageContent, selectedText);
+    //     });
+    // }
 
 
     /**

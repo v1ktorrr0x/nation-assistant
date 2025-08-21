@@ -175,30 +175,52 @@ class LLMService {
   /**
    * Chat with webpage content using simple query + page content
    */
-  async chatWithPage(pageContent, userQuery = "") {
-    const finalQuery = userQuery.trim() === ""
-      ? "What is this page about? Give me a brief overview."
-      : userQuery;
+  async chatWithPage(pageContent, userQuery = "", metadata = {}) {
+    const finalQuery = userQuery && userQuery.trim() !== ""
+      ? userQuery
+      : "What is this page about? Give me a brief overview.";
+
+    const metaParts = [];
+    try {
+      if (metadata && typeof metadata === 'object') {
+        if (metadata.title) metaParts.push(`Title: ${metadata.title}`);
+        if (metadata.url) metaParts.push(`URL: ${metadata.url}`);
+        if (metadata.usedSource) metaParts.push(`Source: ${metadata.usedSource}`);
+        if (typeof metadata.length === 'number') metaParts.push(`Content length: ${metadata.length} chars`);
+      }
+    } catch (_) {}
+    const metaBlock = metaParts.length ? `Metadata:\n- ${metaParts.join('\n- ')}\n\n` : "";
+
+    // Focused selection block (if provided)
+    const selected = typeof metadata?.selectedText === 'string' && metadata.selectedText.trim().length > 0
+      ? metadata.selectedText.trim()
+      : null;
+    const selectionBlock = selected ? `\n\nFocused selection (treat as primary context):\n"""\n${selected}\n"""\n` : '';
 
     const messages = [
       {
         role: 'system',
-        content: `You are a helpful web content assistant. Always respond in English. Answer questions about web pages naturally and conversationally. Keep responses concise unless the user asks for detailed information.`
+        content: `You read web pages and answer questions. Infer the page type and adapt structure and tone to the content and the user's question.
+
+If a focused selection is provided, prioritize it over the rest of the page content when answering.
+
+Return format:
+- Use well-structured Markdown: short headings, bullet lists, and tables when useful.
+- When appropriate, include a "Guidelines" or "Recommendations" section tailored to the user's question and the page.
+- Include only sections that add value; avoid rigid templates and emojis.
+- Optionally append a compact JSON block at the end (as a fenced code block with language json) capturing: { "pageType": string, "tone": string, "sections": [{ "title": string, "items": string[] }], "guidelines": string[] }.
+
+Default to English unless explicitly requested otherwise.`
       },
       {
         role: 'user',
-        content: `**QUESTION:** ${finalQuery}
-
-**WEBPAGE CONTENT:**
-${pageContent}`
+        content: `${metaBlock}Question: ${finalQuery}${selectionBlock}\nWebpage content:\n${pageContent}`
       }
     ];
 
-    const rawResponse = await this.makeRequest(messages);
+    const rawResponse = await this.makeRequest(messages, { maxTokens: 600 });
     return this.formatResponse(rawResponse);
   }
-
-
 
   /**
    * Smart translate - auto-detect source language and choose best target
@@ -262,37 +284,36 @@ ${text}`
   }
 
   /**
-   * Summarize page content with specialized prompt
+   * Summarize page content with adaptive structure and tone
    */
-  async summarizePage(pageContent) {
+  async summarizePage(pageContent, metadata = {}) {
+    const metaParts = [];
+    try {
+      if (metadata && typeof metadata === 'object') {
+        if (metadata.title) metaParts.push(`Title: ${metadata.title}`);
+        if (metadata.url) metaParts.push(`URL: ${metadata.url}`);
+        if (metadata.usedSource) metaParts.push(`Source: ${metadata.usedSource}`);
+        if (typeof metadata.length === 'number') metaParts.push(`Content length: ${metadata.length} chars`);
+      }
+    } catch (_) {}
+    const metaBlock = metaParts.length ? `Metadata:\n- ${metaParts.join('\n- ')}\n\n` : "";
+
     const messages = [
       {
         role: 'system',
-        content: `You are a professional content summarizer specializing in web content analysis. Your task is to create executive-level summaries that busy professionals can quickly understand. Always respond in English with clear, actionable insights using structured formatting.`
+        content: `You summarize web pages. Infer the page type and adapt structure and tone accordingly. Provide a concise overview, then include only the most helpful sections (e.g., key points, steps, metrics, risks, next steps).
+
+Return format:
+- Use well-structured Markdown with clear headings and bullet lists.
+- Include a short "Guidelines" or "Next Steps" section when helpful, tailored to the page and the reader's likely goal.
+- Avoid rigid templates and emojis; include only sections that add value.
+- Optionally append a compact JSON block at the end (fenced as json) capturing: { "pageType": string, "overview": string, "sections": [{ "title": string, "items": string[] }], "guidelines": string[] }.
+
+Default to English unless requested otherwise.`
       },
       {
         role: 'user',
-        content: `Create a comprehensive yet concise summary of this webpage using the following structured format:
-
-**📄 CONTENT SUMMARY**
-
-**Main Topic:** [One clear sentence describing what this page is about]
-
-**Content Type:** [Article, Product Page, Tutorial, Documentation, Blog Post, etc.]
-
-**Key Insights:**
-• [First core insight or main argument]
-• [Second core insight or main argument] 
-• [Third core insight if applicable]
-
-**Target Audience:** [Who this content is designed for]
-
-**Next Steps:** [Any actionable information or recommended actions]
-
-Use this exact structure with markdown formatting. Keep each section concise but informative.
-
-**Content to summarize:**
-${pageContent}`
+        content: `${metaBlock}Summarize this page for a busy reader:\n${pageContent}`
       }
     ];
 
@@ -301,49 +322,35 @@ ${pageContent}`
   }
 
   /**
-   * Extract key points from page content
+   * Extract key insights with adaptive grouping and tone
    */
-  async listKeyPoints(pageContent) {
+  async listKeyPoints(pageContent, metadata = {}) {
+    const metaParts = [];
+    try {
+      if (metadata && typeof metadata === 'object') {
+        if (metadata.title) metaParts.push(`Title: ${metadata.title}`);
+        if (metadata.url) metaParts.push(`URL: ${metadata.url}`);
+        if (metadata.usedSource) metaParts.push(`Source: ${metadata.usedSource}`);
+        if (typeof metadata.length === 'number') metaParts.push(`Content length: ${metadata.length} chars`);
+      }
+    } catch (_) {}
+    const metaBlock = metaParts.length ? `Metadata:\n- ${metaParts.join('\n- ')}\n\n` : "";
+
     const messages = [
       {
         role: 'system',
-        content: `You are a strategic information analyst who extracts the most valuable insights from content. Your expertise is in identifying actionable intelligence, key facts, and critical takeaways that decision-makers need. Always respond in English with structured, impactful formatting.`
+        content: `You extract the most important insights and actions from content. Adapt structure and tone to the page. Return only the most valuable items; group related items under short headings when helpful. Prefer concrete facts, metrics, decisions, and actionable steps present in the page. Avoid speculation and rigid counts.
+
+Return format:
+- Use well-structured Markdown with brief headings and bullet points.
+- Include a "Guidelines/Actions" section when applicable.
+- Optionally append a compact JSON block at the end (fenced as json) capturing: { "pageType": string, "groups": [{ "title": string, "items": string[] }], "guidelines": string[] }.
+
+Default to English unless requested otherwise.`
       },
       {
         role: 'user',
-        content: `Extract the most important insights from this webpage using the following structured format:
-
-**🔍 KEY INSIGHTS**
-
-**📊 Facts & Data:**
-• [Important numbers, statistics, or research findings]
-• [Additional quantitative information if available]
-
-**⚡ Actionable Items:**
-• [Steps, recommendations, or how-to information]
-• [Things users can do or implement]
-
-**💡 Key Arguments:**
-• [Main claims, conclusions, or expert opinions]
-• [Important reasoning or logic presented]
-
-**📋 Important Details:**
-• [Critical dates, names, specifications, or requirements]
-• [Essential information to remember]
-
-**🎯 Value Propositions:**
-• [Benefits, advantages, or unique features highlighted]
-• [What makes this content/product/service valuable]
-
-**Instructions:**
-- Only include sections that have relevant content
-- Limit to 5-7 total points across all sections
-- Each point should be 1-2 sentences maximum
-- Start each point with the most important concept
-- Use clear, actionable language
-
-**Content to analyze:**
-${pageContent}`
+        content: `${metaBlock}From this page, highlight the key insights and actions:\n${pageContent}`
       }
     ];
 
@@ -351,53 +358,37 @@ ${pageContent}`
     return keyPoints.trim();
   }
 
-
-
   /**
-   * Analyze page content with specialized prompt for general analysis
+   * Analyze page content with flexible, professional structure and tone
    */
-  async analyzePage(pageContent) {
+  async analyzePage(pageContent, metadata = {}) {
+    const metaParts = [];
+    try {
+      if (metadata && typeof metadata === 'object') {
+        if (metadata.title) metaParts.push(`Title: ${metadata.title}`);
+        if (metadata.url) metaParts.push(`URL: ${metadata.url}`);
+        if (metadata.usedSource) metaParts.push(`Source: ${metadata.usedSource}`);
+        if (typeof metadata.length === 'number') metaParts.push(`Content length: ${metadata.length} chars`);
+      }
+    } catch (_) {}
+    const metaBlock = metaParts.length ? `Metadata:\n- ${metaParts.join('\n- ')}\n\n` : "";
+
     const messages = [
       {
         role: 'system',
-        content: `You are a senior digital content strategist and UX analyst with expertise in web content evaluation. You provide comprehensive, professional analysis that helps users understand the strategic value and context of web content. Always respond in English with structured, professional formatting.`
+        content: `You analyze web content. Infer the context and adapt structure and tone to the page. Provide a concise, professional analysis with only sections that add value.
+
+Return format:
+- Use well-structured Markdown with clear headings and bullet lists.
+- Include a "Guidelines" or "Recommendations" section for the reader when appropriate.
+- Avoid emojis and rigid templates.
+- Optionally append a compact JSON block at the end (fenced as json) capturing: { "pageType": string, "sections": [{ "title": string, "items": string[] }], "guidelines": string[] }.
+
+Default to English unless requested otherwise.`
       },
       {
         role: 'user',
-        content: `Conduct a comprehensive analysis of this webpage using the following structured format:
-
-**🔍 CONTENT ANALYSIS**
-
-**📂 Content Classification**
-• **Type:** [Article, Product Page, Landing Page, Documentation, etc.]
-• **Industry:** [Domain/industry context]
-• **Format:** [Structure and presentation style]
-
-**🎯 Strategic Purpose**
-• **Primary Objective:** [Main goal of this page]
-• **Target Audience:** [Intended users and their intent]
-• **Business Goals:** [Commercial or informational objectives]
-
-**💎 Key Value Propositions**
-• **Main Benefits:** [Primary value offered to users]
-• **Differentiators:** [Unique selling points or advantages]
-• **Core Message:** [Central thesis or key takeaway]
-
-**⭐ Quality Assessment**
-• **Information Depth:** [Comprehensive/Basic/Surface-level]
-• **Credibility:** [High/Medium/Low with reasoning]
-• **User Experience:** [Professional/Good/Needs Improvement]
-• **Overall Rating:** [Excellent/Good/Fair/Poor]
-
-**🚀 Actionable Insights**
-• **Next Steps:** [What users should do after reading]
-• **Key Takeaways:** [Most important points for decision-making]
-• **Relevance:** [Value for different user types]
-
-Use this exact structure with markdown formatting and emojis. Keep each point concise but informative.
-
-**Content to analyze:**
-${pageContent}`
+        content: `${metaBlock}Analyze this page:\n${pageContent}`
       }
     ];
 
