@@ -23,7 +23,7 @@ flowchart LR
 ```
 
 ### Key steps
-- **Scrape**: The content script extracts readable content (Readability) and converts to Markdown (Turndown), with length limits.
+- **Scrape**: The content script extracts the main content and converts to Markdown (Turndown), with length limits.
 - **Sanitize**: Content is normalized and truncated to safe size; UI input is validated before sending.
 - **Send**: Background posts a Chat Completions request to the configured base URL with Bearer auth.
 - **Receive & format**: The response text is returned; when structured JSON is detected, it's formatted for display.

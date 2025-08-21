@@ -190,8 +190,6 @@ class LLMService {
       if (metadata && typeof metadata === 'object') {
         if (metadata.title) metaParts.push(`Title: ${metadata.title}`);
         if (metadata.url) metaParts.push(`URL: ${metadata.url}`);
-        if (metadata.usedSource) metaParts.push(`Source: ${metadata.usedSource}`);
-        if (typeof metadata.length === 'number') metaParts.push(`Content length: ${metadata.length} chars`);
       }
     } catch (_) {}
     const metaBlock = metaParts.length ? `Metadata:\n- ${metaParts.join('\n- ')}\n\n` : "";
@@ -297,8 +295,6 @@ ${text}`
       if (metadata && typeof metadata === 'object') {
         if (metadata.title) metaParts.push(`Title: ${metadata.title}`);
         if (metadata.url) metaParts.push(`URL: ${metadata.url}`);
-        if (metadata.usedSource) metaParts.push(`Source: ${metadata.usedSource}`);
-        if (typeof metadata.length === 'number') metaParts.push(`Content length: ${metadata.length} chars`);
       }
     } catch (_) {}
     const metaBlock = metaParts.length ? `Metadata:\n- ${metaParts.join('\n- ')}\n\n` : "";
@@ -335,8 +331,6 @@ Default to English unless requested otherwise.`
       if (metadata && typeof metadata === 'object') {
         if (metadata.title) metaParts.push(`Title: ${metadata.title}`);
         if (metadata.url) metaParts.push(`URL: ${metadata.url}`);
-        if (metadata.usedSource) metaParts.push(`Source: ${metadata.usedSource}`);
-        if (typeof metadata.length === 'number') metaParts.push(`Content length: ${metadata.length} chars`);
       }
     } catch (_) {}
     const metaBlock = metaParts.length ? `Metadata:\n- ${metaParts.join('\n- ')}\n\n` : "";
@@ -372,8 +366,6 @@ Default to English unless requested otherwise.`
       if (metadata && typeof metadata === 'object') {
         if (metadata.title) metaParts.push(`Title: ${metadata.title}`);
         if (metadata.url) metaParts.push(`URL: ${metadata.url}`);
-        if (metadata.usedSource) metaParts.push(`Source: ${metadata.usedSource}`);
-        if (typeof metadata.length === 'number') metaParts.push(`Content length: ${metadata.length} chars`);
       }
     } catch (_) {}
     const metaBlock = metaParts.length ? `Metadata:\n- ${metaParts.join('\n- ')}\n\n` : "";
