@@ -141,6 +141,38 @@ class AIResponseFormatter {
       }
     };
 
+    // Helpers for lists inside blockquotes
+    const closeBQLists = () => {
+      while (bqListStack.length > 0) {
+        const closing = bqListStack.pop();
+        processedLines.push(`</${closing.type}>`);
+      }
+      lastBqListItemIndex = -1;
+    };
+
+    const ensureBQListAtLevel = (level, desiredType) => {
+      while (bqListStack.length > level + 1) {
+        const closing = bqListStack.pop();
+        processedLines.push(`</${closing.type}>`);
+      }
+
+      if (bqListStack.length === level + 1) {
+        const top = bqListStack[bqListStack.length - 1];
+        if (top.type !== desiredType) {
+          bqListStack.pop();
+          processedLines.push(`</${top.type}>`);
+          processedLines.push(`<${desiredType}>`);
+          bqListStack.push({ type: desiredType });
+        }
+        return;
+      }
+
+      while (bqListStack.length < level + 1) {
+        processedLines.push(`<${desiredType}>`);
+        bqListStack.push({ type: desiredType });
+      }
+    };
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmed = line.trim();
@@ -184,21 +216,61 @@ class AIResponseFormatter {
         continue;
       }
 
-      // Handle lists (bulleted and numbered)
-      const bulletMatch = line.match(/^(\s*)[-*+•]\s+(.+)$/);
+      // Handle Setext-style headers (top-level only):
+      // Line of text followed by a line of === => h1, --- => h2
+      if (trimmed && i + 1 < lines.length && !inBlockquote) {
+        const next = lines[i + 1].trim();
+        if (/^=+$/.test(next)) {
+          closeAllLists();
+          const hContent = this.processInlineFormatting(trimmed);
+          processedLines.push(`<h1>${hContent}</h1>`);
+          i++; // skip underline line
+          continue;
+        }
+        if (/^-+$/.test(next)) {
+          // Disambiguate from horizontal rule: treat as h2 only when current line has content
+          closeAllLists();
+          const hContent = this.processInlineFormatting(trimmed);
+          processedLines.push(`<h2>${hContent}</h2>`);
+          i++; // skip underline line
+          continue;
+        }
+      }
+
+      // Handle lists (bulleted, numbered, alphabetic, roman)
+      const checkboxMatch = line.match(/^(\s*)[-*+•–—]\s+\[( |x|X)\]\s+(.+)$/);
+      const bulletMatch = line.match(/^(\s*)[-*+•–—]\s+(.+)$/);
       const numberMatch = line.match(/^(\s*)\d+\.\s+(.+)$/);
-      if (bulletMatch || numberMatch) {
+      const alphaMatch = line.match(/^(\s*)[a-zA-Z][\.)]\s+(.+)$/);
+      const romanMatch = line.match(/^(\s*)(?:\(?)([ivxlcdm]+)[\.)]\s+(.+)$/i);
+      if (checkboxMatch || bulletMatch || numberMatch || alphaMatch || romanMatch) {
         // Normalize indent: tabs count as 2 spaces
-        const indentStr = (bulletMatch ? bulletMatch[1] : numberMatch[1]).replace(/\t/g, '  ');
+        const indentStr = (checkboxMatch ? checkboxMatch[1] : bulletMatch ? bulletMatch[1] : numberMatch ? numberMatch[1] : alphaMatch ? alphaMatch[1] : romanMatch[1]).replace(/\t/g, '  ');
         const indent = indentStr.length;
         const level = Math.floor(indent / 2);
-        const desiredType = bulletMatch ? 'ul' : 'ol';
-        const itemContent = this.processInlineFormatting(bulletMatch ? bulletMatch[2] : numberMatch[2]);
+        const desiredType = (bulletMatch || checkboxMatch) ? 'ul' : 'ol';
+        let rawContent = checkboxMatch ? checkboxMatch[3] : bulletMatch ? bulletMatch[2] : numberMatch ? numberMatch[2] : alphaMatch ? alphaMatch[2] : romanMatch[3];
+        let itemContent = this.processInlineFormatting(rawContent);
+
+        // Render task list checkbox visually (disabled)
+        if (checkboxMatch) {
+          const checked = /(x|X)/.test(checkboxMatch[2]);
+          itemContent = `<input type="checkbox" disabled ${checked ? 'checked' : ''}> ${itemContent}`;
+        }
 
         // If entering a list, close blockquote
         if (inBlockquote) {
           processedLines.push('</blockquote>');
           inBlockquote = false;
+        }
+
+        // NEW: If we are already inside a list and this is an indented bullet/number,
+        // treat it as a continuation of the previous list item rather than a nested list.
+        // This preserves "text under key points" without malformed nested structures.
+        if (listStack.length > 0 && indent > 0 && lastListItemIndex >= 0) {
+          processedLines[lastListItemIndex] = processedLines[lastListItemIndex]
+            .replace(/<\/li>$/, `<br>• ${itemContent}</li>`);
+          continue;
         }
 
         // Ensure correct list stack
@@ -242,7 +314,7 @@ class AIResponseFormatter {
         }
 
         // Lists within blockquote
-        const bqBullet = inner.match(/^(\s*)[-*+•]\s+(.+)$/);
+        const bqBullet = inner.match(/^(\s*)[-*+•–—]\s+(.+)$/);
         const bqNumber = inner.match(/^(\s*)\d+\.\s+(.+)$/);
         if (bqBullet || bqNumber) {
           const indentStr = (bqBullet ? bqBullet[1] : bqNumber[1]).replace(/\t/g, '  ');
@@ -271,9 +343,14 @@ class AIResponseFormatter {
         continue;
       }
 
-      // Handle empty lines: preserve spacing but do not force-close lists
+      // Handle empty lines: if inside a list, keep paragraph spacing within the same item
       if (!trimmed) {
-        processedLines.push('');
+        if (listStack.length > 0 && lastListItemIndex >= 0) {
+          processedLines[lastListItemIndex] = processedLines[lastListItemIndex]
+            .replace(/<\/li>$/, `<br><br></li>`);
+        } else {
+          processedLines.push('');
+        }
         continue;
       }
 
@@ -310,7 +387,17 @@ class AIResponseFormatter {
 
     closeAllLists();
 
-    return processedLines.join('\n');
+    // Collapse consecutive empty lines for cleaner spacing
+    const collapsed = [];
+    for (let i = 0; i < processedLines.length; i++) {
+      const line = processedLines[i];
+      if (line === '' && collapsed.length > 0 && collapsed[collapsed.length - 1] === '') {
+        continue;
+      }
+      collapsed.push(line);
+    }
+
+    return collapsed.join('\n');
   }
 
 
@@ -486,8 +573,8 @@ class AIResponseFormatter {
   processInlineFormatting(text) {
     if (!text) return '';
 
-    // Start with the original text and progressively apply safe transforms
-    let result = text
+    // Start by escaping all HTML to avoid injection, then apply safe transforms
+    let result = this.escapeHtml(text)
       // Process inline code first to avoid conflicts
       .replace(/`([^`\n]+)`/g, '<code>$1</code>')
       // Convert explicit markdown links next
@@ -499,7 +586,10 @@ class AIResponseFormatter {
     // Basic text formatting - avoid breaking within words
     result = result
       .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+      .replace(/\*([^*\n]+?)\*/g, '<em>$1</em>')
+      // Underscore variants
+      .replace(/__([^_\n]+?)__/g, '<strong>$1</strong>')
+      .replace(/_([^_\n]+?)_/g, '<em>$1</em>');
 
     return result;
   }
@@ -519,7 +609,13 @@ class AIResponseFormatter {
         // If the segment is an existing anchor or code block, return as-is
         if (/^<a\b/i.test(part) || /^<code\b/i.test(part)) return part;
         // Otherwise, auto-link bare URLs in this plain-text segment
-        return part.replace(this.patterns.autoLink, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        return part.replace(this.patterns.autoLink, (m, url) => {
+          // Trim trailing punctuation that is not part of the URL
+          const trailing = url.match(/[).,!?:;]+$/);
+          const cleanUrl = trailing ? url.slice(0, -trailing[0].length) : url;
+          const tail = trailing ? trailing[0] : '';
+          return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>${tail}`;
+        });
       })
       .join('');
   }

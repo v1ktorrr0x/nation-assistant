@@ -791,7 +791,7 @@ body::before {
 }
 
 .message.ai .message-content li {
-  margin: 8px 0;
+  margin: 10px 0;
   padding-left: 24px;
   line-height: 1.6;
   color: #ffffff;
@@ -799,11 +799,51 @@ body::before {
   display: block;
 }
 
+/* Continuation lines within list items (from formatter <br>) */
+.message.ai .message-content li br {
+  display: block;
+  line-height: 1.8;
+  margin: 6px 0;
+}
+
+/* Task list checkboxes (disabled) */
+.message.ai .message-content li > input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(208, 255, 22, 0.5);
+  background: rgba(208, 255, 22, 0.05);
+  vertical-align: middle;
+  margin-right: 8px;
+  transform: translateY(-1px);
+  position: relative;
+}
+
+.message.ai .message-content li > input[type="checkbox"][checked] {
+  background: rgba(208, 255, 22, 0.25);
+  box-shadow: 0 0 6px rgba(208, 255, 22, 0.3) inset;
+}
+
+.message.ai .message-content li > input[type="checkbox"][checked]::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  width: 6px;
+  height: 9px;
+  border: solid #D0FF16;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
 /* Secondary list items */
 .message.ai .message-content li.secondary,
 .message.ai .message-content li[data-type="meta"] {
   color: #888888;
   font-size: 13px;
+  font-style: italic;
 }
 
 /* List item descriptions and sub-content */
@@ -887,12 +927,10 @@ body::before {
   color: rgba(208, 255, 22, 0.6);
 }
 
-
-
 /* Enhanced blockquotes - inspired by AI sidebar */
 .message.ai .message-content blockquote {
   margin: 16px 0;
-  padding: 16px 20px;
+  padding: 12px 16px;
   background: rgba(208, 255, 22, 0.08);
   border-left: 4px solid rgba(208, 255, 22, 0.4);
   border-radius: 0 8px 8px 0;
@@ -922,6 +960,10 @@ body::before {
   color: rgba(208, 255, 22, 0.4);
   font-family: serif;
   line-height: 1;
+}
+
+.message.ai .message-content blockquote p {
+  margin: 8px 0;
 }
 
 /* Nested blockquotes */
@@ -1275,12 +1317,73 @@ body::before {
   text-underline-offset: 2px;
   transition: all 0.3s ease;
   font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .message.ai .message-content a:hover {
   color: #D0FF16;
   text-decoration-color: rgba(208, 255, 22, 0.8);
   text-decoration-thickness: 2px;
+}
+
+/* Brand-styled emphasis */
+.message.ai .message-content strong,
+.message.ai .message-content b {
+  color: #D0FF16;
+  font-weight: 700;
+}
+
+/* Headers (h1–h6) inside AI messages */
+.message.ai .message-content h1,
+.message.ai .message-content h2,
+.message.ai .message-content h3,
+.message.ai .message-content h4,
+.message.ai .message-content h5,
+.message.ai .message-content h6 {
+  color: #D0FF16;
+  line-height: 1.3;
+  margin: 18px 0 10px 0;
+  font-weight: 700;
+}
+
+.message.ai .message-content h1 { font-size: 24px; letter-spacing: 0.2px; }
+.message.ai .message-content h2 { font-size: 22px; letter-spacing: 0.2px; }
+.message.ai .message-content h3 { font-size: 19px; letter-spacing: 0.15px; }
+.message.ai .message-content h4 { font-size: 16px; letter-spacing: 0.1px; opacity: 0.92; }
+.message.ai .message-content h5 { font-size: 15px; letter-spacing: 0.05px; opacity: 0.9; }
+.message.ai .message-content h6 { font-size: 14px; letter-spacing: 0.03px; text-transform: none; opacity: 0.88; }
+
+/* Subtle underline accent for section headers */
+.message.ai .message-content h2 {
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(208, 255, 22, 0.35);
+}
+
+/* Tighten spacing between headers and subsequent content */
+.message.ai .message-content h1 + p,
+.message.ai .message-content h2 + p,
+.message.ai .message-content h3 + p,
+.message.ai .message-content h4 + p,
+.message.ai .message-content h5 + p,
+.message.ai .message-content h6 + p {
+  margin-top: 6px;
+}
+
+/* Tighten spacing between headers and lists */
+.message.ai .message-content h1 + ul,
+.message.ai .message-content h2 + ul,
+.message.ai .message-content h3 + ul,
+.message.ai .message-content h4 + ul,
+.message.ai .message-content h5 + ul,
+.message.ai .message-content h6 + ul,
+.message.ai .message-content h1 + ol,
+.message.ai .message-content h2 + ol,
+.message.ai .message-content h3 + ol,
+.message.ai .message-content h4 + ol,
+.message.ai .message-content h5 + ol,
+.message.ai .message-content h6 + ol {
+  margin-top: 8px;
 }
 
 /* Secondary/metadata links */
